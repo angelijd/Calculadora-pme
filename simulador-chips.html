@@ -497,6 +497,35 @@ body {
   box-shadow: 0 0 14px var(--status-color);
 }
 
+.gap-simulacoes-log {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #e4e4e7;
+  animation: fadeIn 0.2s ease-out;
+}
+.gap-sim-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gap-sim-bullet {
+  color: #60a5fa;
+  font-weight: 700;
+  margin-right: 4px;
+}
+.gap-sim-valor {
+  font-weight: 700;
+  color: #4ade80;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* ============================================================
    ESTRUTURA DOS ESPAÇOS (EMBAIXO UM DO OUTRO, ESTENDIDOS)
    ============================================================ */
@@ -1355,7 +1384,7 @@ html[data-device="pc"] .gap-dinamico-valor {
       <div class="gap-card" id="gapCard">
         <div class="gap-header-row">
           <div class="gap-label-box">
-            <span class="gap-tag" id="gapTagLabel">GAP A FECHAR</span>
+            <span class="gap-tag" id="gapTagLabel">Faltando</span>
             <button class="btn-info" id="btnInfoGap" title="Ver como o GAP é calculado">i</button>
           </div>
           <div class="gap-pct-badge" id="gapPctBadge">0% COBERTO</div>
@@ -1367,7 +1396,7 @@ html[data-device="pc"] .gap-dinamico-valor {
             <div class="gap-detalhe-status" id="gapSubdetalhe">Calculando projeção...</div>
           </div>
           <div style="text-align: right;">
-            <div style="font-size: 11px; color: var(--brand-muted); text-transform: uppercase;">Acima da meta</div>
+            <div style="font-size: 11px; color: var(--brand-muted); text-transform: uppercase;">Total Simulado</div>
             <div style="font-size: 18px; font-weight: 700; color: #fff;" id="gapTotalSimuladoTxt">+ R$ 0,00/mês</div>
           </div>
         </div>
@@ -1375,6 +1404,9 @@ html[data-device="pc"] .gap-dinamico-valor {
         <div class="barra-container">
           <div class="barra-preenchimento" id="barraProgresso"></div>
         </div>
+
+        <!-- Log dinâmico do que está ativo no Total Simulado -->
+        <div class="gap-simulacoes-log" id="gapSimulacoesLog" style="display:none;"></div>
       </div>
 
     </div>
@@ -1436,47 +1468,11 @@ html[data-device="pc"] .gap-dinamico-valor {
         </div>
       </div>
 
-      <!-- Alavanca 1: Redução de Despesas Gerais -->
-      <div class="alavanca-card" id="cardSimDespesa">
-        <div class="alavanca-header">
-          <div class="alavanca-titulo-box">
-            <span class="alavanca-badge">Alavanca 1</span>
-            <span class="alavanca-titulo">Menos Despesas</span>
-            <span class="alavanca-contrib" id="txtContribDespesa"></span>
-          </div>
-          <button class="btn-apagar-discreto" id="btnLimparDespesa" title="Zerar simulação de despesa">✕ Limpar</button>
-        </div>
-        <div class="alavanca-grid">
-          <label>
-            Valor a economizar / mês (R$)
-            <input type="number" id="simReducaoDespesa" placeholder="ex: 300" onfocus="this.select()" />
-          </label>
-          <div style="font-size:11px; color:var(--brand-muted);">
-            Cada R$ 1 economizado em despesas gerais vai direto para a renda líquida do MEI.
-          </div>
-        </div>
-        <div class="de-para-box" id="deParaDespesa">
-          <div class="de-para-item">
-            <span class="de-para-label">Hoje (De)</span>
-            <span class="de-para-valor" id="deParaDespDe">R$ 0,00</span>
-          </div>
-          <div class="de-para-arrow">➔</div>
-          <div class="de-para-item">
-            <span class="de-para-label">Novo (Para)</span>
-            <span class="de-para-valor destaque" id="deParaDespPara">R$ 0,00</span>
-          </div>
-          <div class="de-para-item">
-            <span class="de-para-label">Mudança</span>
-            <span class="de-para-badge" id="deParaDespPct">0%</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Alavanca 2: Mais Vendas na Oferta Selecionada -->
+      <!-- Alavanca 1: Mais Vendas na Oferta Selecionada -->
       <div class="alavanca-card" id="cardSimVendas">
         <div class="alavanca-header">
           <div class="alavanca-titulo-box">
-            <span class="alavanca-badge">Alavanca 2</span>
+            <span class="alavanca-badge">Alavanca 1</span>
             <span class="alavanca-titulo">Mais Vendas</span>
             <span class="alavanca-contrib" id="txtContribVendas"></span>
           </div>
@@ -1508,11 +1504,11 @@ html[data-device="pc"] .gap-dinamico-valor {
         </div>
       </div>
 
-      <!-- Alavanca 3: Reajuste de Preço na Oferta Selecionada -->
+      <!-- Alavanca 2: Reajuste de Preço na Oferta Selecionada -->
       <div class="alavanca-card" id="cardSimPreco">
         <div class="alavanca-header">
           <div class="alavanca-titulo-box">
-            <span class="alavanca-badge">Alavanca 3</span>
+            <span class="alavanca-badge">Alavanca 2</span>
             <span class="alavanca-titulo">Aumentar Preço</span>
             <span class="alavanca-contrib" id="txtContribPreco"></span>
           </div>
@@ -1547,11 +1543,11 @@ html[data-device="pc"] .gap-dinamico-valor {
         </div>
       </div>
 
-      <!-- Alavanca 4: Novo Produto -->
+      <!-- Alavanca 3: Novo Produto -->
       <div class="alavanca-card" id="cardSimProduto">
         <div class="alavanca-header">
           <div class="alavanca-titulo-box">
-            <span class="alavanca-badge" style="background:#0e7490; color:#a5f3fc;">Alavanca 4</span>
+            <span class="alavanca-badge" style="background:#0e7490; color:#a5f3fc;">Alavanca 3</span>
             <span class="alavanca-titulo">Novo Produto</span>
             <span class="alavanca-contrib" id="txtContribProduto"></span>
           </div>
@@ -1616,22 +1612,21 @@ html[data-device="pc"] .gap-dinamico-valor {
         <button class="btn-fechar-modal" id="btnFecharModalGap">✕</button>
       </div>
       <div class="modal-text">
-        <p>O <strong>GAP</strong> representa a distância financeira mensal entre onde o MEI está hoje e a meta almejada:</p>
+        <p>O <strong>GAP</strong> representa a distância financeira mensal entre o faturamento atual do MEI e a meta almejada:</p>
 
         <div class="formula-box">
-          1. Renda Líquida Atual = Faturamento Atual − Despesas Gerais Atuais<br>
-          2. GAP Inicial = Meta de Renda Líquida − Renda Líquida Atual
+          1. GAP Inicial = Meta Mensal − Faturamento Atual
         </div>
 
-        <p style="margin-top: 10px;">Quando a Cris simula as 4 alavancas no Espaço 3:</p>
+        <p style="margin-top: 10px;">Quando a Cris simula as 3 alavancas no Espaço 3:</p>
         <div class="formula-box">
-          3. Total Simulado = Economia de Despesas + Mais Vendas + Reajuste de Preço + Lucro de Novo Produto<br>
-          4. % de Cobertura = (Total Simulado ÷ GAP Inicial) × 100<br>
-          5. Saldo Restante = GAP Inicial − Total Simulado
+          2. Total Simulado = Mais Vendas + Reajuste de Preço + Novo Produto<br>
+          3. % de Cobertura = (Total Simulado ÷ GAP Inicial) × 100<br>
+          4. Saldo Restante (Faltando) = GAP Inicial − Total Simulado
         </div>
 
         <p style="margin-top: 10px;">
-          Se o <strong>Total Simulado</strong> ultrapassar o GAP, a porcentagem passa de 100% e o visor passa a exibir o <strong>superávit</strong> (quanto está acima da meta), mudando de cor do vermelho para o verde vibrante.
+          Se o <strong>Total Simulado</strong> ultrapassar o GAP, a porcentagem passa de 100% e o visor passa a exibir a <strong>meta superada</strong> (quanto está acima da meta), mudando de cor do vermelho para o verde vibrante.
         </p>
       </div>
     </div>
@@ -1736,12 +1731,14 @@ function calcularTudo() {
   const despesasAtuais = estado.base.despesasAtuais;
   const rendaAtual = faturamentoAtualTotal - despesasAtuais;
   const alvoMensal = estado.base.alvoMensal;
-  const gapInicial = alvoMensal - rendaAtual;
 
-  // Alavanca 1: Redução de Despesas
-  const contribDespesa = estado.simulacaoGeral.reducaoDespesa;
+  // Despesa sai das contas do GAP: comparado diretamente com o faturamento atual
+  const gapInicial = alvoMensal - faturamentoAtualTotal;
 
-  // Alavancas 2 & 3: Mais Vendas e Preço
+  // Alavanca de despesas fora do escopo
+  const contribDespesa = 0;
+
+  // Alavancas: Mais Vendas e Preço
   let contribVendasTotal = 0;
   let contribPrecoTotal = 0;
 
@@ -1754,12 +1751,12 @@ function calcularTudo() {
     }
   });
 
-  // Alavanca 4: Novo Produto
+  // Alavanca: Novo Produto
   const np = estado.novoProduto;
   const receitaNovoProduto = (np.vendasMes * np.valorUnitario) - np.despesa;
   const contribProduto = Math.max(0, receitaNovoProduto);
 
-  const totalSimulado = contribDespesa + contribVendasTotal + contribPrecoTotal + contribProduto;
+  const totalSimulado = contribVendasTotal + contribPrecoTotal + contribProduto;
 
   let pctFechado = 0;
   let saldoRestante = 0;
@@ -1798,7 +1795,6 @@ function recalcular() {
   estado.base.prazoMeses = numVal("basePrazoMeses");
   estado.base.despesasAtuais = numVal("despesasAtuaisGeral");
 
-  estado.simulacaoGeral.reducaoDespesa = numVal("simReducaoDespesa");
   estado.novoProduto.vendasMes = numVal("produtoVendasMes");
   estado.novoProduto.valorUnitario = numVal("produtoValorUnitario");
   estado.novoProduto.despesa = numVal("produtoDespesa");
@@ -1839,16 +1835,16 @@ function recalcular() {
   } else if (r.gapInicial <= 0) {
     elTagLabel.textContent = "META JÁ ATINGIDA";
     elValorPrincipal.textContent = "Meta Batida!";
-    elSubdetalhe.innerHTML = `Renda atual (${formatBRL(r.rendaAtual)}) já cobre o alvo de ${formatBRL(r.alvoMensal)}.`;
+    elSubdetalhe.innerHTML = `Faturamento atual (${formatBRL(r.faturamentoAtualTotal)}) já cobre a meta de ${formatBRL(r.alvoMensal)}.`;
   } else if (r.totalSimulado >= r.gapInicial) {
     const excedente = r.totalSimulado - r.gapInicial;
     elTagLabel.textContent = "META SUPERADA!";
     elValorPrincipal.textContent = `+ ${formatBRL(excedente)}/mês`;
-    elSubdetalhe.innerHTML = `<strong>GAP de ${formatBRL(r.gapInicial)} 100% batido!</strong>`;
+    elSubdetalhe.innerHTML = `<strong>Meta de ${formatBRL(r.gapInicial)} 100% batida!</strong>`;
   } else {
-    elTagLabel.textContent = "GAP A FECHAR";
+    elTagLabel.textContent = "Faltando";
     elValorPrincipal.textContent = `${formatBRL(r.saldoRestante)}/mês`;
-    elSubdetalhe.innerHTML = `GAP original: ${formatBRL(r.gapInicial)}/mês · Faltam <strong>${formatBRL(r.saldoRestante)}</strong>`;
+    elSubdetalhe.innerHTML = `Faltam <strong>${formatBRL(r.saldoRestante)}/mês</strong> para atingir a meta.`;
   }
 
   document.getElementById("gapTotalSimuladoTxt").textContent = `+ ${formatBRL(r.totalSimulado)}/mês`;
@@ -1856,45 +1852,16 @@ function recalcular() {
   const larguraBarra = Math.min(100, Math.max(0, r.pctFechado));
   document.getElementById("barraProgresso").style.width = `${larguraBarra}%`;
 
-  // Espaço 2: Portfólio Atual
+  // Espaço 2: Portfólio Atual (Despesas e Renda informativas)
   document.getElementById("resumoFatAtual").textContent = `${formatBRL(r.faturamentoAtualTotal)}/mês`;
   document.getElementById("resumoRendaAtual").textContent = `${formatBRL(r.rendaAtual)}/mês`;
 
   // Espaço 3: Alavancas de Simulação
-  const elContribDesp = document.getElementById("txtContribDespesa");
-  elContribDesp.textContent = r.contribDespesa > 0 ? `fecha +${formatBRL(r.contribDespesa)}` : "";
-
-  // De / Para Alavanca 1: Despesas
-  const despAtual = estado.base.despesasAtuais || 0;
-  const inputElDesp = document.getElementById("simReducaoDespesa");
-  const valReducaoDespStr = inputElDesp ? inputElDesp.value.trim() : "";
-  const despReducao = valReducaoDespStr !== "" ? (parseFloat(valReducaoDespStr) || 0) : 0;
-  const despNova = Math.max(0, despAtual - despReducao);
-  let pctReducaoDesp = 0;
-  if (valReducaoDespStr !== "") {
-    if (despAtual > 0) {
-      pctReducaoDesp = (despReducao / despAtual) * 100;
-    } else if (despReducao > 0) {
-      pctReducaoDesp = 100;
-    }
-  }
-
-  document.getElementById("deParaDespDe").textContent = formatBRL(despAtual);
-  document.getElementById("deParaDespPara").textContent = formatBRL(despNova);
-  const elBadgeDesp = document.getElementById("deParaDespPct");
-  if (valReducaoDespStr !== "" && despReducao > 0) {
-    elBadgeDesp.className = "de-para-badge reducao";
-    elBadgeDesp.textContent = `-${pctReducaoDesp.toFixed(1)}%`;
-  } else {
-    elBadgeDesp.className = "de-para-badge";
-    elBadgeDesp.textContent = "0%";
-  }
-
   if (oferta) {
     const ganhoVendasOferta = oferta.simVendasNovas * oferta.preco;
-    document.getElementById("txtContribVendas").textContent = ganhoVendasOferta > 0 ? `fecha +${formatBRL(ganhoVendasOferta)}` : "";
+    document.getElementById("txtContribVendas").textContent = ganhoVendasOferta > 0 ? `acrescenta +${formatBRL(ganhoVendasOferta)}` : "";
 
-    // De / Para Alavanca 2: Mais Vendas
+    // De / Para Alavanca 1: Mais Vendas
     const vendasAtuais = oferta.quantidade || 0;
     const inputElVendas = document.getElementById("simVendasNovas");
     const valVendasStr = inputElVendas ? inputElVendas.value.trim() : "";
@@ -1923,7 +1890,7 @@ function recalcular() {
       elBadgeVendas.textContent = "0%";
     }
 
-    // De / Para Alavanca 3: Aumentar Preço
+    // De / Para Alavanca 2: Aumentar Preço
     let ganhoPrecoOferta = 0;
     const precoAtual = oferta.preco || 0;
     const inputElPreco = document.getElementById("simPrecoNovo");
@@ -1942,7 +1909,7 @@ function recalcular() {
     if (precoNovo > precoAtual) {
       ganhoPrecoOferta = oferta.quantidade * (precoNovo - precoAtual);
     }
-    document.getElementById("txtContribPreco").textContent = ganhoPrecoOferta > 0 ? `fecha +${formatBRL(ganhoPrecoOferta)}` : "";
+    document.getElementById("txtContribPreco").textContent = ganhoPrecoOferta > 0 ? `acrescenta +${formatBRL(ganhoPrecoOferta)}` : "";
 
     document.getElementById("deParaPrecoDe").textContent = formatBRL(precoAtual);
     document.getElementById("deParaPrecoPara").textContent = formatBRL(precoNovo);
@@ -1983,7 +1950,57 @@ function recalcular() {
 
   const npLucro = (estado.novoProduto.vendasMes * estado.novoProduto.valorUnitario) - estado.novoProduto.despesa;
   document.getElementById("produtoResultadoValor").textContent = `${formatBRL(npLucro)}/mês`;
-  document.getElementById("txtContribProduto").textContent = npLucro > 0 ? `fecha +${formatBRL(npLucro)}` : "";
+  document.getElementById("txtContribProduto").textContent = npLucro > 0 ? `acrescenta +${formatBRL(npLucro)}` : "";
+
+  // Log dinâmico no gap-card com o que está ativo no Total Simulado
+  const elLog = document.getElementById("gapSimulacoesLog");
+  if (elLog) {
+    const itensLog = [];
+
+    estado.ofertas.forEach(o => {
+      const nomeOf = o.nome && o.nome.trim() ? o.nome.trim() : `Oferta #${o.id}`;
+
+      // Mais vendas
+      if (o.simVendasNovas > 0) {
+        const ganhoV = o.simVendasNovas * (o.preco || 0);
+        itensLog.push({
+          texto: `${o.simVendasNovas} nova(s) venda(s)/mês em "${nomeOf}"`,
+          valor: ganhoV > 0 ? `+${formatBRL(ganhoV)}/mês` : ""
+        });
+      }
+
+      // Aumento de preço
+      if (o.simPrecoNovo > o.preco) {
+        const aumentoUnit = o.simPrecoNovo - o.preco;
+        const ganhoP = (o.quantidade || 0) * aumentoUnit;
+        itensLog.push({
+          texto: `Aumento de ${formatBRL(aumentoUnit)}/un em "${nomeOf}"`,
+          valor: ganhoP > 0 ? `+${formatBRL(ganhoP)}/mês` : ""
+        });
+      }
+    });
+
+    // Novo produto
+    if (npLucro > 0) {
+      itensLog.push({
+        texto: `Novo produto: ${estado.novoProduto.vendasMes} vendas a ${formatBRL(estado.novoProduto.valorUnitario)}`,
+        valor: `+${formatBRL(npLucro)}/mês`
+      });
+    }
+
+    if (itensLog.length > 0) {
+      elLog.style.display = "flex";
+      elLog.innerHTML = itensLog.map(item => `
+        <div class="gap-sim-item">
+          <span><span class="gap-sim-bullet">•</span> ${escapeHtml(item.texto)}</span>
+          ${item.valor ? `<span class="gap-sim-valor">${item.valor}</span>` : ""}
+        </div>
+      `).join("");
+    } else {
+      elLog.style.display = "none";
+      elLog.innerHTML = "";
+    }
+  }
 
   // Resumo Final Card
   const elResumoCard = document.getElementById("resumoFinalCard");
@@ -2127,12 +2144,6 @@ function renderPainelOferta() {
 // BOTÕES DE LIMPAR DISCRETOS
 // ============================================================
 function configurarBotoesLimpar() {
-  document.getElementById("btnLimparDespesa").addEventListener("click", () => {
-    document.getElementById("simReducaoDespesa").value = "";
-    estado.simulacaoGeral.reducaoDespesa = 0;
-    recalcular();
-  });
-
   document.getElementById("btnLimparVendas").addEventListener("click", () => {
     document.getElementById("simVendasNovas").value = "";
     const oferta = obterOfertaSelecionada();
@@ -2242,7 +2253,6 @@ function configurarModaisEDrawer() {
           document.getElementById("baseAlvoMensal").value = estado.base.alvoMensal > 0 ? estado.base.alvoMensal : "";
           document.getElementById("basePrazoMeses").value = estado.base.prazoMeses > 0 ? estado.base.prazoMeses : "";
           document.getElementById("despesasAtuaisGeral").value = estado.base.despesasAtuais > 0 ? estado.base.despesasAtuais : "";
-          document.getElementById("simReducaoDespesa").value = estado.simulacaoGeral.reducaoDespesa > 0 ? estado.simulacaoGeral.reducaoDespesa : "";
           document.getElementById("produtoVendasMes").value = estado.novoProduto.vendasMes > 0 ? estado.novoProduto.vendasMes : "";
           document.getElementById("produtoValorUnitario").value = estado.novoProduto.valorUnitario > 0 ? estado.novoProduto.valorUnitario : "";
           document.getElementById("produtoDespesa").value = estado.novoProduto.despesa > 0 ? estado.novoProduto.despesa : "";
@@ -2261,7 +2271,6 @@ function configurarModaisEDrawer() {
 // PLANO DE AÇÃO (PILARES E AÇÕES DINÂMICAS)
 // ============================================================
 const PILARES_PLANO = [
-  { id: "Menos despesas", rotulo: "Menos despesas", icone: "📉" },
   { id: "Mais vendas", rotulo: "Mais vendas", icone: "📈" },
   { id: "Aumentar preço", rotulo: "Aumentar preço", icone: "🏷️" },
   { id: "Novo produto", rotulo: "Novo produto", icone: "✨" }
@@ -2278,7 +2287,7 @@ function renderPlanoAcao() {
     if (!estado.planoAcao.acoes[p.id]) estado.planoAcao.acoes[p.id] = [];
   });
 
-  // Renderizar chips dos 4 pilares
+  // Renderizar chips dos 3 pilares
   const containerChips = document.getElementById("planoPilaresChips");
   if (containerChips) {
     containerChips.innerHTML = "";
@@ -2308,7 +2317,7 @@ function renderPlanoAcao() {
   if (estado.planoAcao.pilaresSelecionados.length === 0) {
     containerPaineis.innerHTML = `
       <div class="plano-vazio-aviso">
-        💡 Selecione um ou mais itens acima ('Menos despesas', 'Mais vendas', 'Aumentar preço', 'Novo produto') para listar as ações práticas.
+        💡 Selecione um ou mais itens acima ('Mais vendas', 'Aumentar preço', 'Novo produto') para listar as ações práticas.
       </div>
     `;
     return;
@@ -2531,7 +2540,7 @@ async function init() {
   document.getElementById("despesasAtuaisGeral").value = estado.base.despesasAtuais > 0 ? estado.base.despesasAtuais : "";
 
   ["clienteNome", "clienteEmail", "baseAlvoMensal", "basePrazoMeses", "despesasAtuaisGeral", 
-   "simReducaoDespesa", "simVendasNovas", "simPrecoNovo", 
+   "simVendasNovas", "simPrecoNovo", 
    "produtoVendasMes", "produtoValorUnitario", "produtoDespesa"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("input", recalcular);
