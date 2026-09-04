@@ -4,5 +4,5 @@ echo ====================================================
 echo   Iniciando Servidor Local (Node.js)...
 echo   Pasta de salvamento: Calculadora\dados_salvos
 echo ====================================================
-node server.js
+node local-server.js
 pause
