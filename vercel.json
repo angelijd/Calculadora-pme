@@ -1,22 +1,4 @@
 {
-  "version": 2,
-  "cleanUrls": true,
-  "routes": [
-    {
-      "src": "/api/config",
-      "dest": "/api/config.js"
-    },
-    {
-      "src": "/api/health",
-      "dest": "/api/health.js"
-    },
-    {
-      "src": "/api/salvar-bigquery",
-      "dest": "/api/salvar-bigquery.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/$1"
-    }
-  ]
+  "outputDirectory": "public",
+  "cleanUrls": true
 }
