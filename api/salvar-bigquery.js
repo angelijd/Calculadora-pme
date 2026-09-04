@@ -64,8 +64,56 @@ module.exports = async (req, res) => {
     const dados = req.body || {};
     const fatAtual = parseFloat(dados.faturamentoMensal) || 0;
     const despAtual = parseFloat(dados.despesasAtuais) || 0;
-    const row = {
-      id: 'sim_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    const simId = (dados.id && dados.id.trim()) ? dados.id.trim() : ('sim_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
+
+    const mergeQuery = `
+      MERGE \`${datasetId}.${tableId}\` T
+      USING (
+        SELECT 
+          @id as id,
+          @cliente_nome as cliente_nome,
+          @cliente_email as cliente_email,
+          @alvo_mensal as alvo_mensal,
+          @prazo_meses as prazo_meses,
+          @despesas_atuais as despesas_atuais,
+          @faturamento_atual as faturamento_atual,
+          @renda_atual as renda_atual,
+          @gap_inicial as gap_inicial,
+          @reducao_despesas as reducao_despesas,
+          @total_simulado as total_simulado,
+          @pct_fechado as pct_fechado,
+          @saldo_restante as saldo_restante,
+          PARSE_JSON(@ofertas) as ofertas,
+          PARSE_JSON(@novo_produto) as novo_produto,
+          PARSE_JSON(@plano_acao) as plano_acao,
+          CURRENT_TIMESTAMP() as criado_em
+      ) S
+      ON T.id = S.id
+      WHEN MATCHED THEN
+        UPDATE SET 
+          cliente_nome = S.cliente_nome,
+          cliente_email = S.cliente_email,
+          alvo_mensal = S.alvo_mensal,
+          prazo_meses = S.prazo_meses,
+          despesas_atuais = S.despesas_atuais,
+          faturamento_atual = S.faturamento_atual,
+          renda_atual = S.renda_atual,
+          gap_inicial = S.gap_inicial,
+          reducao_despesas = S.reducao_despesas,
+          total_simulado = S.total_simulado,
+          pct_fechado = S.pct_fechado,
+          saldo_restante = S.saldo_restante,
+          ofertas = S.ofertas,
+          novo_produto = S.novo_produto,
+          plano_acao = S.plano_acao,
+          criado_em = S.criado_em
+      WHEN NOT MATCHED THEN
+        INSERT (id, cliente_nome, cliente_email, alvo_mensal, prazo_meses, despesas_atuais, faturamento_atual, renda_atual, gap_inicial, reducao_despesas, total_simulado, pct_fechado, saldo_restante, ofertas, novo_produto, plano_acao, criado_em)
+        VALUES (S.id, S.cliente_nome, S.cliente_email, S.alvo_mensal, S.prazo_meses, S.despesas_atuais, S.faturamento_atual, S.renda_atual, S.gap_inicial, S.reducao_despesas, S.total_simulado, S.pct_fechado, S.saldo_restante, S.ofertas, S.novo_produto, S.plano_acao, S.criado_em)
+    `;
+
+    const params = {
+      id: simId,
       cliente_nome: dados.nome || '',
       cliente_email: dados.email || '',
       alvo_mensal: parseFloat(dados.alvoMensal) || 0,
@@ -80,16 +128,16 @@ module.exports = async (req, res) => {
       saldo_restante: parseFloat(dados.saldoRestante) || 0,
       ofertas: JSON.stringify(dados.ofertas || []),
       novo_produto: JSON.stringify(dados.novoProduto || {}),
-      plano_acao: JSON.stringify(dados.planoAcao || {}),
-      criado_em: BigQuery.timestamp(new Date())
+      plano_acao: JSON.stringify(dados.planoAcao || {})
     };
 
-    await bigquery.dataset(datasetId).table(tableId).insert([row]);
+    const [job] = await bigquery.createQueryJob({ query: mergeQuery, params });
+    await job.getQueryResults();
 
     return res.status(200).json({
       sucesso: true,
       mensagem: 'Simulação gravada com sucesso no Google BigQuery!',
-      id: row.id
+      id: simId
     });
   } catch (err) {
     console.error('Erro ao salvar no BigQuery:', err);

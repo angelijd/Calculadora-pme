@@ -1188,6 +1188,55 @@ html[data-device="pc"] .container {
 html[data-device="pc"] .gap-dinamico-valor {
   font-size: 38px;
 }
+
+/* Botão Salvar Simulação ao Final */
+.salvar-final-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 32px 0 24px 0;
+  padding: 24px;
+  background: rgba(24, 24, 27, 0.6);
+  border: 1px solid var(--brand-border);
+  border-radius: 14px;
+}
+.btn-salvar-final {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 16px 42px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.btn-salvar-final:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(16, 185, 129, 0.45);
+}
+.btn-salvar-final:active {
+  transform: translateY(0);
+}
+.btn-salvar-final:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.salvar-final-status {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--brand-muted);
+  min-height: 20px;
+}
 </style>
 </head>
 <body>
@@ -1202,7 +1251,6 @@ html[data-device="pc"] .gap-dinamico-valor {
       <div class="top-bar">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <span class="brand-badge">ROTA</span>
-          <span class="screen-device-badge" id="screenDeviceBadge" title="Identificação automática de tamanho de tela">🖥️ PC</span>
           
           <!-- Botão / Pill de Perfil do Cliente Recolhível -->
           <button class="client-profile-pill" id="btnToggleProfileDrawer" title="Clique para editar nome, email, meta e prazo">
@@ -1214,15 +1262,9 @@ html[data-device="pc"] .gap-dinamico-valor {
         </div>
 
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <button class="sync-status" id="btnStatusSync" title="Clique para sincronizar com o Google BigQuery">
+          <button class="sync-status" id="btnStatusSync" title="Salvamento automático no Google BigQuery a cada minuto">
             <span class="sync-dot" id="syncDot"></span>
             <span id="syncText">💾 Salvo localmente</span>
-          </button>
-          <button class="btn-backup-topo" id="btnExportarBackup" title="Baixar cópia de segurança (arquivo JSON) no seu computador">
-            📥 Baixar Cópia
-          </button>
-          <button class="btn-backup-topo" id="btnImportarBackup" title="Abrir uma cópia salva anteriormente no computador">
-            📂 Abrir Cópia
           </button>
         </div>
       </div>
@@ -1259,12 +1301,8 @@ html[data-device="pc"] .gap-dinamico-valor {
 
       <!-- CARD DO GAP COM O DESTAQUE ORIGINAL -->
       <div class="gap-card" id="gapCard">
-        <div class="gap-header-row">
-          <div class="gap-label-box">
-            <span class="gap-tag" id="gapTagLabel">Faltando</span>
-            <button class="btn-info" id="btnInfoGap" title="Ver como o GAP é calculado">i</button>
-          </div>
-          <div class="gap-pct-badge" id="gapPctBadge">0% COBERTO</div>
+        <div class="gap-header-row" style="justify-content: flex-end;">
+          <div class="gap-pct-badge" id="gapPctBadge">0% ATINGIDO</div>
         </div>
 
         <div class="gap-main-numbers">
@@ -1475,6 +1513,14 @@ html[data-device="pc"] .gap-dinamico-valor {
         <!-- Painéis de Ações dos Pilares Ativos -->
         <div class="plano-acoes-container" id="planoAcoesContainer"></div>
       </div>
+
+      <!-- Botão Salvar Simulação ao Final -->
+      <div class="salvar-final-container">
+        <button type="button" class="btn-salvar-final" id="btnSalvarFinal">
+          💾 Salvar Simulação
+        </button>
+        <span class="salvar-final-status" id="salvarFinalStatus"></span>
+      </div>
     </section>
 
   </main>
@@ -1498,7 +1544,7 @@ html[data-device="pc"] .gap-dinamico-valor {
         <p style="margin-top: 10px;">Quando a Cris simula as 3 alavancas no Espaço 3:</p>
         <div class="formula-box">
           2. Total Simulado = Mais Vendas + Reajuste de Preço + Novo Produto<br>
-          3. % de Cobertura = (Total Simulado ÷ GAP Inicial) × 100<br>
+          3. % Atingido = (Total Simulado ÷ GAP Inicial) × 100<br>
           4. Saldo Restante (Faltando) = GAP Inicial − Total Simulado
         </div>
 
@@ -1516,7 +1562,15 @@ html[data-device="pc"] .gap-dinamico-valor {
 let proximoIdOferta = 1;
 let ofertaSelecionadaId = null;
 
+function obterOuGerarIdSimulacao() {
+  if (!estado.id) {
+    estado.id = 'sim_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+  }
+  return estado.id;
+}
+
 let estado = {
+  id: null,
   cliente: {
     nome: "",
     email: ""
@@ -1703,23 +1757,23 @@ function recalcular() {
   const elTagLabel = document.getElementById("gapTagLabel");
   const elPctBadge = document.getElementById("gapPctBadge");
 
-  elPctBadge.textContent = `${Math.round(r.pctFechado)}% COBERTO`;
+  if (elPctBadge) elPctBadge.textContent = `${Math.round(r.pctFechado)}% ATINGIDO`;
 
   if (r.alvoMensal === 0) {
-    elTagLabel.textContent = "DEFINIR META";
+    if (elTagLabel) elTagLabel.textContent = "DEFINIR META";
     elValorPrincipal.textContent = "R$ 0,00/mês";
     elSubdetalhe.innerHTML = `Clique em <strong>Novo Cliente</strong> acima para definir meta e prazo.`;
   } else if (r.gapInicial <= 0) {
-    elTagLabel.textContent = "META JÁ ATINGIDA";
+    if (elTagLabel) elTagLabel.textContent = "META JÁ ATINGIDA";
     elValorPrincipal.textContent = "Meta Batida!";
     elSubdetalhe.innerHTML = `Faturamento atual (${formatBRL(r.faturamentoAtualTotal)}) já cobre a meta de ${formatBRL(r.alvoMensal)}.`;
   } else if (r.totalSimulado >= r.gapInicial) {
     const excedente = r.totalSimulado - r.gapInicial;
-    elTagLabel.textContent = "META SUPERADA!";
+    if (elTagLabel) elTagLabel.textContent = "META SUPERADA!";
     elValorPrincipal.textContent = `+ ${formatBRL(excedente)}/mês`;
     elSubdetalhe.innerHTML = `<strong>Meta de ${formatBRL(r.gapInicial)} 100% batida!</strong>`;
   } else {
-    elTagLabel.textContent = "Faltando";
+    if (elTagLabel) elTagLabel.textContent = "Faltando";
     elValorPrincipal.textContent = `${formatBRL(r.saldoRestante)}/mês`;
     elSubdetalhe.innerHTML = `Faltam <strong>${formatBRL(r.saldoRestante)}/mês</strong> para atingir a meta.`;
   }
@@ -1890,10 +1944,10 @@ function recalcular() {
     elResumoCard.innerHTML = `🎉 <strong>Meta 100% atingida!</strong> As simulações geram <strong>+${formatBRL(r.totalSimulado)}/mês</strong>${excedente > 0 ? ` com <strong>${formatBRL(excedente)}</strong> de folga acima da meta` : ""}.`;
   } else if (r.pctFechado >= 60) {
     elResumoCard.className = "resumo-final-card quase";
-    elResumoCard.innerHTML = `👍 Bom avanço: <strong>${Math.round(r.pctFechado)}% do GAP coberto</strong>. Faltam <strong>${formatBRL(r.saldoRestante)}/mês</strong> — ajuste mais uma alavanca para fechar a conta.`;
+    elResumoCard.innerHTML = `👍 Bom avanço: <strong>${Math.round(r.pctFechado)}% do GAP atingido</strong>. Faltam <strong>${formatBRL(r.saldoRestante)}/mês</strong> — ajuste mais uma alavanca para fechar a conta.`;
   } else {
     elResumoCard.className = "resumo-final-card incompleto";
-    elResumoCard.innerHTML = `Faltam <strong>${formatBRL(r.saldoRestante)}/mês</strong> para atingir a meta (${Math.round(r.pctFechado)}% coberto). Explore aumento de volume, preço ou novo produto.`;
+    elResumoCard.innerHTML = `Faltam <strong>${formatBRL(r.saldoRestante)}/mês</strong> para atingir a meta (${Math.round(r.pctFechado)}% atingido). Explore aumento de volume, preço ou novo produto.`;
   }
 
   if (window.dataManager) {
@@ -2062,9 +2116,12 @@ function configurarModaisEDrawer() {
   btnFechar.addEventListener("click", alternarDrawer);
 
   const modalGap = document.getElementById("modalInfoGap");
-  document.getElementById("btnInfoGap").addEventListener("click", () => {
-    modalGap.classList.add("ativo");
-  });
+  const btnInfo = document.getElementById("btnInfoGap");
+  if (btnInfo) {
+    btnInfo.addEventListener("click", () => {
+      if (modalGap) modalGap.classList.add("ativo");
+    });
+  }
   document.getElementById("btnFecharModalGap").addEventListener("click", () => {
     modalGap.classList.remove("ativo");
   });
@@ -2072,76 +2129,25 @@ function configurarModaisEDrawer() {
     if (e.target === modalGap) modalGap.classList.remove("ativo");
   });
 
-  document.getElementById("btnStatusSync").addEventListener("click", async () => {
-    if (window.dataManager && window.dataManager.isBigQueryConfigured) {
-      document.getElementById("syncText").textContent = "⏳ Enviando ao BigQuery...";
-      const res = await window.dataManager.sincronizarBigQuery({
-        nome: estado.cliente.nome,
-        email: estado.cliente.email,
-        alvoMensal: estado.base.alvoMensal,
-        prazoMeses: estado.base.prazoMeses,
-        despesasAtuais: estado.base.despesasAtuais,
-        faturamentoMensal: estado.ofertas.reduce((s, o) => s + (o.preco * o.quantidade), 0),
-        gapInicial: estado.base.alvoMensal - (estado.ofertas.reduce((s, o) => s + (o.preco * o.quantidade), 0) - estado.base.despesasAtuais),
-        reducaoDespesas: estado.simulacaoGeral.reducaoDespesa,
-        ofertas: estado.ofertas,
-        novoProduto: estado.novoProduto,
-        planoAcao: estado.planoAcao,
-        totalContribuido: calcularTudo().totalSimulado,
-        pctFechado: calcularTudo().pctFechado,
-        saldoRestante: calcularTudo().saldoRestante
-      });
-      if (res.sucesso) {
-        document.getElementById("syncText").textContent = "☁️ BigQuery Sincronizado";
-        alert("Simulação sincronizada com o Google BigQuery com sucesso!");
-      } else {
-        document.getElementById("syncText").textContent = "☁️ BigQuery Conectado";
-        alert("Erro na sincronização com BigQuery: " + (res.erro || res.motivo));
+  const btnSync = document.getElementById("btnStatusSync");
+  if (btnSync) {
+    btnSync.addEventListener("click", () => {
+      executarSalvarBigQuery(false);
+    });
+  }
+
+  const btnSalvarFinal = document.getElementById("btnSalvarFinal");
+  if (btnSalvarFinal) {
+    btnSalvarFinal.addEventListener("click", () => {
+      if (window.dataManager) {
+        window.dataManager.salvarLocal({
+          ...estado,
+          resultadoCalculado: calcularTudo()
+        });
       }
-    } else {
-      alert("Armazenamento local ativo. Para sincronizar na nuvem com o Google BigQuery, configure as variáveis GOOGLE_PROJECT_ID, GOOGLE_CLIENT_EMAIL e GOOGLE_PRIVATE_KEY no Vercel ou no arquivo .env.");
-    }
-  });
-
-  document.getElementById("btnExportarBackup").addEventListener("click", () => {
-    if (window.dataManager) {
-      window.dataManager.exportarJSON({
-        ...estado,
-        resultadoCalculado: calcularTudo()
-      });
-    }
-  });
-
-  document.getElementById("btnImportarBackup").addEventListener("click", () => {
-    if (window.dataManager) {
-      window.dataManager.importarJSON((dados) => {
-        if (dados) {
-          if (dados.cliente) estado.cliente = dados.cliente;
-          if (dados.base) estado.base = dados.base;
-          if (dados.simulacaoGeral) estado.simulacaoGeral = dados.simulacaoGeral;
-          if (dados.novoProduto) estado.novoProduto = dados.novoProduto;
-          if (dados.planoAcao) estado.planoAcao = dados.planoAcao;
-          if (dados.ofertas && dados.ofertas.length > 0) {
-            estado.ofertas = dados.ofertas;
-            ofertaSelecionadaId = estado.ofertas[0].id;
-          }
-          document.getElementById("clienteNome").value = estado.cliente.nome || "";
-          document.getElementById("clienteEmail").value = estado.cliente.email || "";
-          document.getElementById("baseAlvoMensal").value = estado.base.alvoMensal > 0 ? estado.base.alvoMensal : "";
-          document.getElementById("basePrazoMeses").value = estado.base.prazoMeses > 0 ? estado.base.prazoMeses : "";
-          document.getElementById("despesasAtuaisGeral").value = estado.base.despesasAtuais > 0 ? estado.base.despesasAtuais : "";
-          document.getElementById("produtoVendasMes").value = estado.novoProduto.vendasMes > 0 ? estado.novoProduto.vendasMes : "";
-          document.getElementById("produtoValorUnitario").value = estado.novoProduto.valorUnitario > 0 ? estado.novoProduto.valorUnitario : "";
-          document.getElementById("produtoDespesa").value = estado.novoProduto.despesa > 0 ? estado.novoProduto.despesa : "";
-          renderChips();
-          renderPainelOferta();
-          renderPlanoAcao();
-          recalcular();
-          alert("Backup carregado com sucesso!");
-        }
-      });
-    }
-  });
+      executarSalvarBigQuery(false);
+    });
+  }
 }
 
 // ============================================================
@@ -2374,6 +2380,85 @@ function atualizarIdentificacaoTela() {
 // ============================================================
 // INICIALIZAÇÃO
 // ============================================================
+
+// ============================================================
+// SALVAMENTO NO GOOGLE BIGQUERY (COM MERGE/SOBREPOSIÇÃO)
+// ============================================================
+async function executarSalvarBigQuery(silencioso = false) {
+  if (!window.dataManager || !window.dataManager.isBigQueryConfigured) {
+    if (!silencioso) {
+      alert("Armazenamento local ativo. O Google BigQuery não está configurado neste ambiente.");
+    }
+    return false;
+  }
+
+  const syncText = document.getElementById("syncText");
+  const syncDot = document.getElementById("syncDot");
+  const salvarFinalStatus = document.getElementById("salvarFinalStatus");
+  const btnSalvarFinal = document.getElementById("btnSalvarFinal");
+
+  if (!silencioso) {
+    if (syncText) syncText.textContent = "⏳ Salvando...";
+    if (salvarFinalStatus) salvarFinalStatus.textContent = "Salvando simulação no Google BigQuery...";
+    if (btnSalvarFinal) btnSalvarFinal.disabled = true;
+  }
+
+  const r = calcularTudo();
+  const faturamentoMensal = estado.ofertas.reduce((s, o) => s + (o.preco * o.quantidade), 0);
+  const gapInicial = estado.base.alvoMensal - faturamentoMensal;
+
+  try {
+    const payload = {
+      id: obterOuGerarIdSimulacao(),
+      nome: estado.cliente.nome || "",
+      email: estado.cliente.email || "",
+      alvoMensal: estado.base.alvoMensal || 0,
+      prazoMeses: estado.base.prazoMeses || 0,
+      despesasAtuais: estado.base.despesasAtuais || 0,
+      faturamentoMensal: faturamentoMensal,
+      gapInicial: gapInicial,
+      reducaoDespesas: estado.simulacaoGeral.reducaoDespesa || 0,
+      ofertas: estado.ofertas,
+      novoProduto: estado.novoProduto,
+      planoAcao: estado.planoAcao,
+      totalContribuido: r.totalSimulado,
+      pctFechado: r.pctFechado,
+      saldoRestante: r.saldoRestante
+    };
+
+    const res = await window.dataManager.sincronizarBigQuery(payload);
+
+    if (res && res.sucesso) {
+      if (syncDot) syncDot.style.background = "#38bdf8";
+      if (syncText) syncText.textContent = "☁️ Salvamento automático a cada min";
+      if (salvarFinalStatus) {
+        salvarFinalStatus.textContent = "✅ Simulação salva com sucesso no BigQuery!";
+        setTimeout(() => {
+          if (salvarFinalStatus) salvarFinalStatus.textContent = "";
+        }, 5000);
+      }
+      if (!silencioso) {
+        alert("Simulação salva com sucesso no Google BigQuery!");
+      }
+      return true;
+    } else {
+      if (syncText) syncText.textContent = "☁️ Salvamento automático a cada min";
+      if (!silencioso) {
+        alert("Erro ao salvar no BigQuery: " + (res && (res.erro || res.motivo) ? (res.erro || res.motivo) : "Erro desconhecido"));
+      }
+      return false;
+    }
+  } catch (err) {
+    console.error("Erro na rotina de salvar:", err);
+    if (!silencioso) {
+      alert("Erro ao conectar com o servidor para salvar no BigQuery.");
+    }
+    return false;
+  } finally {
+    if (btnSalvarFinal) btnSalvarFinal.disabled = false;
+  }
+}
+
 async function init() {
   atualizarIdentificacaoTela();
   window.addEventListener("resize", atualizarIdentificacaoTela);
@@ -2382,10 +2467,15 @@ async function init() {
     const conectado = await window.dataManager.init();
     if (conectado) {
       document.getElementById("syncDot").style.background = "#38bdf8";
-      document.getElementById("syncText").textContent = "☁️ BigQuery Conectado";
+      document.getElementById("syncText").textContent = "☁️ Salvamento automático a cada min";
     }
 
     const dadosSalvos = window.dataManager.carregarLocal();
+    if (dadosSalvos && dadosSalvos.id) {
+      estado.id = dadosSalvos.id;
+    } else {
+      obterOuGerarIdSimulacao();
+    }
     if (dadosSalvos) {
       if (dadosSalvos.cliente) estado.cliente = dadosSalvos.cliente;
       if (dadosSalvos.base) estado.base = dadosSalvos.base;
@@ -2429,6 +2519,13 @@ async function init() {
   renderPainelOferta();
   renderPlanoAcao();
   recalcular();
+
+  // Auto-salvamento no BigQuery a cada minuto (60s) com overwrite/merge
+  setInterval(() => {
+    if (window.dataManager && window.dataManager.isBigQueryConfigured) {
+      executarSalvarBigQuery(true);
+    }
+  }, 60000);
 }
 
 window.addEventListener("DOMContentLoaded", init);
