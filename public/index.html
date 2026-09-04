@@ -7,8 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Supabase JS Client via CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Data Manager (LocalStorage & Google BigQuery) -->
 <script src="supabase-client.js"></script>
 
 <style>
@@ -1186,7 +1185,7 @@ html[data-device="pc"] .gap-dinamico-valor {
         </div>
 
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <button class="sync-status" id="btnStatusSync" title="Clique para sincronizar com Supabase">
+          <button class="sync-status" id="btnStatusSync" title="Clique para sincronizar com o Google BigQuery">
             <span class="sync-dot" id="syncDot"></span>
             <span id="syncText">💾 Salvo localmente</span>
           </button>
@@ -2063,8 +2062,9 @@ function configurarModaisEDrawer() {
   });
 
   document.getElementById("btnStatusSync").addEventListener("click", async () => {
-    if (window.dataManager && window.dataManager.isSupabaseConfigured) {
-      const res = await window.dataManager.sincronizarSupabase({
+    if (window.dataManager && window.dataManager.isBigQueryConfigured) {
+      document.getElementById("syncText").textContent = "⏳ Enviando ao BigQuery...";
+      const res = await window.dataManager.sincronizarBigQuery({
         nome: estado.cliente.nome,
         email: estado.cliente.email,
         alvoMensal: estado.base.alvoMensal,
@@ -2081,12 +2081,14 @@ function configurarModaisEDrawer() {
         saldoRestante: calcularTudo().saldoRestante
       });
       if (res.sucesso) {
-        alert("Sincronizado com o Supabase com sucesso!");
+        document.getElementById("syncText").textContent = "☁️ BigQuery Sincronizado";
+        alert("Simulação sincronizada com o Google BigQuery com sucesso!");
       } else {
-        alert("Erro na sincronização: " + (res.erro || res.motivo));
+        document.getElementById("syncText").textContent = "☁️ BigQuery Conectado";
+        alert("Erro na sincronização com BigQuery: " + (res.erro || res.motivo));
       }
     } else {
-      alert("Armazenamento local ativo. Para salvar na nuvem, configure SUPABASE_URL e SUPABASE_ANON_KEY no Railway ou crie um arquivo .env.");
+      alert("Armazenamento local ativo. Para sincronizar na nuvem com o Google BigQuery, configure as variáveis GOOGLE_PROJECT_ID, GOOGLE_CLIENT_EMAIL e GOOGLE_PRIVATE_KEY no Vercel ou no arquivo .env.");
     }
   });
 
@@ -2371,7 +2373,7 @@ async function init() {
     const conectado = await window.dataManager.init();
     if (conectado) {
       document.getElementById("syncDot").style.background = "#38bdf8";
-      document.getElementById("syncText").textContent = "☁️ Supabase Conectado";
+      document.getElementById("syncText").textContent = "☁️ BigQuery Conectado";
     }
 
     const dadosSalvos = window.dataManager.carregarLocal();

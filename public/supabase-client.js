@@ -1,8 +1,8 @@
-// Supabase Client & LocalStorage Sync Layer
+// DataManager: LocalStorage & BigQuery Sync Layer
 class DataManager {
   constructor() {
-    this.supabase = null;
-    this.isSupabaseConfigured = false;
+    this.isBigQueryConfigured = false;
+    this.projectId = '';
     this.storageKey = 'calculadora_mei_estado_v4';
   }
 
@@ -11,30 +11,16 @@ class DataManager {
       const res = await fetch('/api/config');
       if (res.ok) {
         const config = await res.json();
-        if (config.supabaseUrl && config.supabaseAnonKey && window.supabase) {
-          this.supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
-          this.isSupabaseConfigured = true;
-          console.log('Supabase configurado com sucesso via servidor.');
+        if (config.bigqueryConfigured) {
+          this.isBigQueryConfigured = true;
+          this.projectId = config.projectId || '';
+          console.log('Google BigQuery configurado com sucesso via servidor.');
           return true;
         }
       }
     } catch (e) {
       console.warn('Rodando em modo cliente puro ou sem backend ativo.');
     }
-
-    // Tentar ler do localStorage caso o usuário tenha configurado manualmente
-    const localUrl = localStorage.getItem('calc_supabase_url');
-    const localKey = localStorage.getItem('calc_supabase_anon_key');
-    if (localUrl && localKey && window.supabase) {
-      try {
-        this.supabase = window.supabase.createClient(localUrl, localKey);
-        this.isSupabaseConfigured = true;
-        return true;
-      } catch (err) {
-        console.error('Erro ao inicializar Supabase local:', err);
-      }
-    }
-
     return false;
   }
 
@@ -116,59 +102,17 @@ class DataManager {
     input.click();
   }
 
-  async sincronizarSupabase(dadosCompletos) {
-    if (!this.isSupabaseConfigured || !this.supabase) {
-      return { sucesso: false, motivo: 'Supabase não configurado' };
-    }
-
+  async sincronizarBigQuery(dadosCompletos) {
     try {
-      // 1. Inserir ou atualizar cliente
-      let clienteId = dadosCompletos.clienteId;
-      if (!clienteId && dadosCompletos.nome) {
-        const { data: cliente, error: errCliente } = await this.supabase
-          .from('clientes')
-          .insert([{ nome: dadosCompletos.nome, email: dadosCompletos.email || '' }])
-          .select()
-          .single();
-
-        if (errCliente) throw errCliente;
-        clienteId = cliente.id;
-      }
-
-      // 2. Salvar diagnóstico
-      const { data: diag, error: errDiag } = await this.supabase
-        .from('diagnosticos')
-        .insert([{
-          cliente_id: clienteId,
-          alvo_mensal: dadosCompletos.alvoMensal,
-          prazo_meses: dadosCompletos.prazoMeses,
-          faturamento_atual: dadosCompletos.faturamentoMensal,
-          despesas_atuais: dadosCompletos.despesasAtuais,
-          gap_inicial: dadosCompletos.gapInicial
-        }])
-        .select()
-        .single();
-
-      if (errDiag) throw errDiag;
-
-      // 3. Salvar simulação
-      const { error: errSim } = await this.supabase
-        .from('simulacoes')
-        .insert([{
-          diagnostico_id: diag.id,
-          reducao_despesas: dadosCompletos.reducaoDespesas,
-          ofertas_simuladas: dadosCompletos.ofertas,
-          novo_produto: dadosCompletos.novoProduto,
-          total_contribuido: dadosCompletos.totalContribuido,
-          pct_fechado: dadosCompletos.pctFechado,
-          saldo_restante: dadosCompletos.saldoRestante
-        }]);
-
-      if (errSim) throw errSim;
-
-      return { sucesso: true, clienteId, diagnosticoId: diag.id };
+      const res = await fetch('/api/salvar-bigquery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dadosCompletos)
+      });
+      const data = await res.json();
+      return data;
     } catch (error) {
-      console.error('Erro na sincronização com Supabase:', error);
+      console.error('Erro na sincronização com BigQuery:', error);
       return { sucesso: false, erro: error.message };
     }
   }

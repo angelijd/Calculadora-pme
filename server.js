@@ -22,13 +22,17 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
 });
 
-// Configuração pública do Supabase (apenas URL e Chave Anon pública)
+// Configuração do status de integração (BigQuery)
 app.get('/api/config', (req, res) => {
+  const hasBigQuery = !!(process.env.GOOGLE_PROJECT_ID && process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
   res.json({
-    supabaseUrl: process.env.SUPABASE_URL || '',
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || ''
+    bigqueryConfigured: hasBigQuery,
+    projectId: process.env.GOOGLE_PROJECT_ID || ''
   });
 });
+
+// Endpoint de salvamento no Google BigQuery
+app.post('/api/salvar-bigquery', require('./api/salvar-bigquery'));
 
 // Salvar dados automaticamente no disco local (cria arquivos JSON na pasta dados_salvos)
 app.post('/api/salvar-disco', (req, res) => {

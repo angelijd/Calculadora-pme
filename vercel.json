@@ -11,8 +11,12 @@
       "dest": "/api/health.js"
     },
     {
+      "src": "/api/salvar-bigquery",
+      "dest": "/api/salvar-bigquery.js"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/public/"
+      "dest": "/public/$1"
     }
   ]
 }

@@ -8,11 +8,18 @@
     "dev": "node --watch server.js"
   },
   "dependencies": {
+    "@google-cloud/bigquery": "^9.0.3",
     "@supabase/supabase-js": "^2.49.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2"
   },
-  "keywords": ["calculadora", "mei", "simulador", "railway", "supabase"],
+  "keywords": [
+    "calculadora",
+    "mei",
+    "simulador",
+    "railway",
+    "supabase"
+  ],
   "author": "Cris / Equipe",
   "license": "MIT"
 }

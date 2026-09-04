@@ -7,14 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Supabase JS Client via CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Data Manager (LocalStorage & Google BigQuery) -->
 <script>
-// Supabase Client & LocalStorage Sync Layer
+// DataManager: LocalStorage & BigQuery Sync Layer
 class DataManager {
   constructor() {
-    this.supabase = null;
-    this.isSupabaseConfigured = false;
+    this.isBigQueryConfigured = false;
+    this.projectId = '';
     this.storageKey = 'calculadora_mei_estado_v4';
   }
 
@@ -23,30 +22,16 @@ class DataManager {
       const res = await fetch('/api/config');
       if (res.ok) {
         const config = await res.json();
-        if (config.supabaseUrl && config.supabaseAnonKey && window.supabase) {
-          this.supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
-          this.isSupabaseConfigured = true;
-          console.log('Supabase configurado com sucesso via servidor.');
+        if (config.bigqueryConfigured) {
+          this.isBigQueryConfigured = true;
+          this.projectId = config.projectId || '';
+          console.log('Google BigQuery configurado com sucesso via servidor.');
           return true;
         }
       }
     } catch (e) {
       console.warn('Rodando em modo cliente puro ou sem backend ativo.');
     }
-
-    // Tentar ler do localStorage caso o usuário tenha configurado manualmente
-    const localUrl = localStorage.getItem('calc_supabase_url');
-    const localKey = localStorage.getItem('calc_supabase_anon_key');
-    if (localUrl && localKey && window.supabase) {
-      try {
-        this.supabase = window.supabase.createClient(localUrl, localKey);
-        this.isSupabaseConfigured = true;
-        return true;
-      } catch (err) {
-        console.error('Erro ao inicializar Supabase local:', err);
-      }
-    }
-
     return false;
   }
 
@@ -128,59 +113,17 @@ class DataManager {
     input.click();
   }
 
-  async sincronizarSupabase(dadosCompletos) {
-    if (!this.isSupabaseConfigured || !this.supabase) {
-      return { sucesso: false, motivo: 'Supabase não configurado' };
-    }
-
+  async sincronizarBigQuery(dadosCompletos) {
     try {
-      // 1. Inserir ou atualizar cliente
-      let clienteId = dadosCompletos.clienteId;
-      if (!clienteId && dadosCompletos.nome) {
-        const { data: cliente, error: errCliente } = await this.supabase
-          .from('clientes')
-          .insert([{ nome: dadosCompletos.nome, email: dadosCompletos.email || '' }])
-          .select()
-          .single();
-
-        if (errCliente) throw errCliente;
-        clienteId = cliente.id;
-      }
-
-      // 2. Salvar diagnóstico
-      const { data: diag, error: errDiag } = await this.supabase
-        .from('diagnosticos')
-        .insert([{
-          cliente_id: clienteId,
-          alvo_mensal: dadosCompletos.alvoMensal,
-          prazo_meses: dadosCompletos.prazoMeses,
-          faturamento_atual: dadosCompletos.faturamentoMensal,
-          despesas_atuais: dadosCompletos.despesasAtuais,
-          gap_inicial: dadosCompletos.gapInicial
-        }])
-        .select()
-        .single();
-
-      if (errDiag) throw errDiag;
-
-      // 3. Salvar simulação
-      const { error: errSim } = await this.supabase
-        .from('simulacoes')
-        .insert([{
-          diagnostico_id: diag.id,
-          reducao_despesas: dadosCompletos.reducaoDespesas,
-          ofertas_simuladas: dadosCompletos.ofertas,
-          novo_produto: dadosCompletos.novoProduto,
-          total_contribuido: dadosCompletos.totalContribuido,
-          pct_fechado: dadosCompletos.pctFechado,
-          saldo_restante: dadosCompletos.saldoRestante
-        }]);
-
-      if (errSim) throw errSim;
-
-      return { sucesso: true, clienteId, diagnosticoId: diag.id };
+      const res = await fetch('/api/salvar-bigquery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dadosCompletos)
+      });
+      const data = await res.json();
+      return data;
     } catch (error) {
-      console.error('Erro na sincronização com Supabase:', error);
+      console.error('Erro na sincronização com BigQuery:', error);
       return { sucesso: false, erro: error.message };
     }
   }
@@ -1365,7 +1308,7 @@ html[data-device="pc"] .gap-dinamico-valor {
         </div>
 
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <button class="sync-status" id="btnStatusSync" title="Clique para sincronizar com Supabase">
+          <button class="sync-status" id="btnStatusSync" title="Clique para sincronizar com o Google BigQuery">
             <span class="sync-dot" id="syncDot"></span>
             <span id="syncText">💾 Salvo localmente</span>
           </button>
@@ -2242,8 +2185,9 @@ function configurarModaisEDrawer() {
   });
 
   document.getElementById("btnStatusSync").addEventListener("click", async () => {
-    if (window.dataManager && window.dataManager.isSupabaseConfigured) {
-      const res = await window.dataManager.sincronizarSupabase({
+    if (window.dataManager && window.dataManager.isBigQueryConfigured) {
+      document.getElementById("syncText").textContent = "⏳ Enviando ao BigQuery...";
+      const res = await window.dataManager.sincronizarBigQuery({
         nome: estado.cliente.nome,
         email: estado.cliente.email,
         alvoMensal: estado.base.alvoMensal,
@@ -2260,12 +2204,14 @@ function configurarModaisEDrawer() {
         saldoRestante: calcularTudo().saldoRestante
       });
       if (res.sucesso) {
-        alert("Sincronizado com o Supabase com sucesso!");
+        document.getElementById("syncText").textContent = "☁️ BigQuery Sincronizado";
+        alert("Simulação sincronizada com o Google BigQuery com sucesso!");
       } else {
-        alert("Erro na sincronização: " + (res.erro || res.motivo));
+        document.getElementById("syncText").textContent = "☁️ BigQuery Conectado";
+        alert("Erro na sincronização com BigQuery: " + (res.erro || res.motivo));
       }
     } else {
-      alert("Armazenamento local ativo. Para salvar na nuvem, configure SUPABASE_URL e SUPABASE_ANON_KEY no Railway ou crie um arquivo .env.");
+      alert("Armazenamento local ativo. Para sincronizar na nuvem com o Google BigQuery, configure as variáveis GOOGLE_PROJECT_ID, GOOGLE_CLIENT_EMAIL e GOOGLE_PRIVATE_KEY no Vercel ou no arquivo .env.");
     }
   });
 
@@ -2550,7 +2496,7 @@ async function init() {
     const conectado = await window.dataManager.init();
     if (conectado) {
       document.getElementById("syncDot").style.background = "#38bdf8";
-      document.getElementById("syncText").textContent = "☁️ Supabase Conectado";
+      document.getElementById("syncText").textContent = "☁️ BigQuery Conectado";
     }
 
     const dadosSalvos = window.dataManager.carregarLocal();
