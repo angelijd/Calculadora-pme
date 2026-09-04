@@ -1,6 +1,7 @@
 node_modules/
 .env
 .env.local
+service-account.json
 dados_salvos/
 *.log
 .DS_Store

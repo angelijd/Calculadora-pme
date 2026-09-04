@@ -23,13 +23,7 @@ app.get('/health', (req, res) => {
 });
 
 // Configuração do status de integração (BigQuery)
-app.get('/api/config', (req, res) => {
-  const hasBigQuery = !!(process.env.GOOGLE_PROJECT_ID && process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
-  res.json({
-    bigqueryConfigured: hasBigQuery,
-    projectId: process.env.GOOGLE_PROJECT_ID || ''
-  });
-});
+app.get('/api/config', require('./api/config'));
 
 // Endpoint de salvamento no Google BigQuery
 app.post('/api/salvar-bigquery', require('./api/salvar-bigquery'));
