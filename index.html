@@ -1,0 +1,2428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calculadora para MEIs — Simulador de Metas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Data Manager (LocalStorage & Google BigQuery) -->
+<script src="supabase-client.js"></script>
+
+<style>
+:root {
+  --brand-black: #09090b;
+  --brand-surface: #121215;
+  --brand-card: #18181c;
+  --brand-card-hover: #202025;
+  --brand-border: #27272b;
+  --brand-border-focus: #3f3f46;
+  --brand-blue: #0145F9;
+  --brand-blue-glow: rgba(1, 69, 249, 0.25);
+  --brand-white: #fafafa;
+  --brand-muted: #a1a1aa;
+  --brand-subtle: #71717a;
+  
+  /* Cores dinâmicas de progresso */
+  --status-color: #ef4444;
+  --status-glow: rgba(239, 68, 68, 0.2);
+  --status-bg: rgba(239, 68, 68, 0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--brand-black);
+  color: var(--brand-white);
+  line-height: 1.5;
+  font-size: 16px;
+  padding: 0 0 80px 0;
+}
+
+/* Aproveita amplamente a tela estendendo o conteúdo na horizontal (PC Widescreen, Tablet e Mobile) */
+.container {
+  width: 100%;
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 0 32px;
+  transition: max-width 0.2s ease, padding 0.2s ease;
+}
+
+@media (min-width: 1600px) {
+  .container {
+    max-width: 1480px;
+    padding: 0 40px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .container {
+    max-width: 960px;
+    padding: 0 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    width: 100%;
+    padding: 0 16px;
+  }
+}
+
+/* ============================================================
+   HERO FIXO (STICKY TOP) — COM O DESTAQUE ORIGINAL DO GAP
+   ============================================================ */
+.hero-sticky-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(9, 9, 11, 0.95);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--brand-border);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.65);
+  padding: 16px 0 18px 0;
+  margin-bottom: 26px;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.brand-badge {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.12);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+
+/* Badge de Identificação Automática de Tamanho de Tela */
+.screen-device-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #1a1a20;
+  border: 1px solid var(--brand-border);
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+.screen-device-badge.device-pc {
+  border-color: rgba(96, 165, 250, 0.4);
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+}
+.screen-device-badge.device-tablet {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.12);
+}
+.screen-device-badge.device-mobile {
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+/* Pill recolhível do perfil do cliente */
+.client-profile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #18181c;
+  border: 1px solid var(--brand-border);
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--brand-white);
+  font-family: inherit;
+}
+.client-profile-pill:hover {
+  border-color: var(--brand-blue);
+  background: #1f1f25;
+}
+.pill-avatar { font-size: 16px; }
+.pill-name { font-weight: 600; color: #fff; font-size: 14px; }
+.pill-meta-target {
+  font-size: 12px;
+  font-weight: 600;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.15);
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+}
+.pill-toggle-icon {
+  font-size: 11px;
+  color: var(--brand-muted);
+  transition: transform 0.2s;
+}
+
+.sync-status {
+  font-size: 13px;
+  color: var(--brand-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  background: #18181c;
+  padding: 7px 15px;
+  border-radius: 999px;
+  border: 1px solid var(--brand-border);
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.sync-status:hover { border-color: #52525b; }
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.btn-backup-topo {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a1a1aa;
+  background: #18181c;
+  border: 1px solid var(--brand-border);
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-backup-topo:hover {
+  color: #fff;
+  border-color: #52525b;
+  background: #24242a;
+}
+
+/* Drawer Recolhível do Perfil e Metas */
+.profile-drawer {
+  display: none;
+  background: #16161a;
+  border: 1px solid var(--brand-border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+  animation: slideDown 0.2s ease-out;
+}
+.profile-drawer.aberto { display: block; }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.profile-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--brand-border);
+}
+.profile-drawer-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #60a5fa;
+}
+.btn-fechar-drawer {
+  background: none;
+  border: 1px solid var(--brand-border);
+  color: var(--brand-muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-fechar-drawer:hover { color: #fff; border-color: #52525b; }
+
+/* Grid de cadastro: Meta e Prazo EMBAIXO de Nome e E-mail */
+.profile-drawer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .profile-drawer-grid { grid-template-columns: 1fr; }
+}
+
+/* CARD PRINCIPAL DO GAP — COM TODO O DESTAQUE ORIGINAL */
+.gap-card {
+  border-radius: 16px;
+  padding: 24px 30px;
+  background: var(--status-bg);
+  border: 1.5px solid var(--status-color);
+  box-shadow: 0 8px 30px var(--status-glow);
+  transition: all 0.3s ease;
+}
+
+.gap-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.gap-label-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gap-tag {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--status-color);
+}
+
+.btn-info {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--brand-white);
+  border-radius: 999px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-info:hover {
+  background: var(--brand-white);
+  color: #000;
+}
+
+.gap-pct-badge {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--status-color);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--status-color);
+}
+
+.gap-main-numbers {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.gap-dinamico-valor {
+  font-size: 38px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
+.gap-detalhe-status {
+  font-size: 14px;
+  color: var(--brand-muted);
+}
+.gap-detalhe-status strong {
+  color: var(--status-color);
+}
+
+.barra-container {
+  height: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.barra-preenchimento {
+  height: 100%;
+  width: 0%;
+  background: var(--status-color);
+  border-radius: 999px;
+  transition: width 0.35s ease, background-color 0.35s ease;
+  box-shadow: 0 0 14px var(--status-color);
+}
+
+/* ============================================================
+   ESTRUTURA DOS ESPAÇOS (EMBAIXO UM DO OUTRO, ESTENDIDOS)
+   ============================================================ */
+.section-space {
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  border-radius: 16px;
+  padding: 26px 30px;
+  margin-bottom: 26px;
+  position: relative;
+}
+
+.space-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--brand-border);
+}
+
+.space-title-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.space-number {
+  background: var(--brand-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.space-title {
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fff;
+}
+.space-desc {
+  font-size: 14px;
+  color: var(--brand-muted);
+  margin-top: 4px;
+}
+
+/* Inputs gerais com fontes e espaçamentos confortáveis */
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #d4d4d8;
+  font-weight: 600;
+}
+input[type=number], input[type=text] {
+  font-size: 16px;
+  padding: 10px 14px;
+  min-height: 44px;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  font-family: inherit;
+  background: #101013;
+  color: var(--brand-white);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type=number]:focus, input[type=text]:focus {
+  outline: none;
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 2px var(--brand-blue-glow);
+}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* ============================================================
+   ESPAÇO 2: PORTFÓLIO ATUAL
+   ============================================================ */
+.chips-ofertas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.chip-oferta {
+  border: 1.5px solid var(--brand-border);
+  border-radius: 999px;
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #141417;
+  color: var(--brand-white);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.chip-oferta:hover { border-color: #52525b; }
+.chip-oferta.selecionado {
+  border-color: var(--brand-blue);
+  background: var(--brand-blue);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(1, 69, 249, 0.4);
+}
+.chip-add {
+  border: 1.5px dashed #3f3f46;
+  border-radius: 999px;
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #a1a1aa;
+  cursor: pointer;
+  background: none;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.chip-add:hover { border-color: var(--brand-white); color: #fff; }
+
+.portfolio-card-oferta {
+  background: #18181b;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+.grid-portfolio-inputs {
+  display: grid;
+  grid-template-columns: 2.2fr 1.2fr 1.2fr auto;
+  gap: 14px;
+  align-items: flex-end;
+}
+@media (max-width: 768px) {
+  .grid-portfolio-inputs { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .grid-portfolio-inputs { grid-template-columns: 1fr; }
+}
+
+.btn-del-oferta {
+  background: none;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  height: 44px;
+  font-weight: 600;
+}
+.btn-del-oferta:hover { background: rgba(239, 68, 68, 0.15); }
+
+.resumo-financeiro-atual {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  background: #111114;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  padding: 18px 22px;
+}
+@media (max-width: 650px) {
+  .resumo-financeiro-atual { grid-template-columns: 1fr; }
+}
+.resumo-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.resumo-stat-label {
+  font-size: 12px;
+  color: var(--brand-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.resumo-stat-valor {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ============================================================
+   ESPAÇO 3: SIMULAÇÃO DE CENÁRIOS (EMBAIXO DO PORTFÓLIO)
+   ============================================================ */
+.alavanca-card {
+  background: #18181b;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s;
+}
+
+.alavanca-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.alavanca-titulo-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.alavanca-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #27272a;
+  color: #d4d4d8;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.alavanca-titulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.alavanca-contrib {
+  font-size: 14px;
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.btn-apagar-discreto {
+  background: none;
+  border: 1px solid transparent;
+  color: #71717a;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: inherit;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+.btn-apagar-discreto:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.alavanca-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  align-items: center;
+}
+
+.input-com-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.badge-aumento {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #27272a;
+  color: #a1a1aa;
+}
+.badge-aumento.positivo {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* ============================================================
+   DE / PARA / VARIAÇÃO % NAS ALAVANCAS
+   ============================================================ */
+.de-para-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #101013;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.de-para-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.de-para-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--brand-muted);
+}
+
+.de-para-valor {
+  font-size: 15px;
+  font-weight: 700;
+  color: #d4d4d8;
+}
+
+.de-para-valor.destaque {
+  color: #fff;
+}
+
+.de-para-arrow {
+  font-size: 16px;
+  color: #60a5fa;
+  font-weight: 700;
+  user-select: none;
+}
+
+.de-para-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #27272a;
+  color: #a1a1aa;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.de-para-badge.positivo {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.de-para-badge.reducao {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.alavanca-oferta-alerta {
+  font-size: 13px;
+  color: #d4d4d8;
+  margin-bottom: 12px;
+  background: #111114;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border-left: 3px solid var(--brand-blue);
+}
+
+.novo-produto-box {
+  margin-top: 12px;
+  padding: 12px 18px;
+  background: rgba(1, 69, 249, 0.08);
+  border: 1px solid rgba(1, 69, 249, 0.2);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #60a5fa;
+}
+
+.resumo-final-card {
+  text-align: center;
+  padding: 18px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 16px;
+  margin-top: 14px;
+  border: 1px solid;
+  transition: all 0.3s;
+}
+.resumo-final-card.incompleto {
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.resumo-final-card.quase {
+  background: rgba(245, 158, 11, 0.08);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.resumo-final-card.completo {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+/* ============================================================
+   PLANO DE AÇÃO (PILARES E AÇÕES DINÂMICAS)
+   ============================================================ */
+.plano-acao-card {
+  background: #141417;
+  border: 1px solid var(--brand-border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-top: 22px;
+}
+
+.plano-acao-header {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--brand-border);
+}
+
+.plano-acao-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.plano-acao-badge {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(1, 69, 249, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(1, 69, 249, 0.3);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.plano-acao-titulo {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plano-acao-desc {
+  font-size: 13px;
+  color: var(--brand-muted);
+}
+
+.plano-pilares-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.pilar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a1a1e;
+  border: 1.5px solid var(--brand-border);
+  color: #d4d4d8;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.pilar-chip:hover {
+  border-color: #52525b;
+  background: #222228;
+  color: #fff;
+}
+.pilar-chip.ativo {
+  border-color: var(--brand-blue);
+  background: rgba(1, 69, 249, 0.2);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(1, 69, 249, 0.35);
+}
+.pilar-chip-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #52525b;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.pilar-chip.ativo .pilar-chip-check {
+  border-color: #60a5fa;
+  background: var(--brand-blue);
+  color: #fff;
+}
+.pilar-chip-count {
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.plano-pilar-painel {
+  background: #19191d;
+  border: 1px solid var(--brand-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  animation: fadeIn 0.2s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.plano-pilar-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.plano-pilar-nome {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.plano-pilar-qtd {
+  font-size: 12px;
+  color: #94a3b8;
+  background: #27272a;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.btn-fechar-pilar {
+  background: none;
+  border: 1px solid var(--brand-border);
+  color: var(--brand-muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.btn-fechar-pilar:hover {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.plano-acoes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.plano-sem-acoes {
+  font-size: 13px;
+  color: var(--brand-muted);
+  padding: 6px 2px;
+  font-style: italic;
+}
+.plano-sem-acoes strong {
+  color: #e4e4e7;
+  font-style: normal;
+}
+
+.plano-acao-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #111114;
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #f4f4f5;
+  transition: border-color 0.2s;
+}
+.plano-acao-item:hover {
+  border-color: #3f3f46;
+}
+.plano-acao-item-texto {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  word-break: break-word;
+  flex: 1;
+}
+.plano-acao-item-bullet {
+  color: #60a5fa;
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+}
+.btn-remover-acao {
+  background: none;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+}
+.btn-remover-acao:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.plano-novo-input-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.plano-novo-input-row {
+  display: flex;
+  gap: 8px;
+}
+.plano-novo-input {
+  flex: 1;
+  font-size: 15px;
+  padding: 10px 14px;
+  min-height: 44px;
+  background: #0d0d10;
+  border: 1.5px solid #2e2e34;
+  border-radius: 8px;
+  color: #fff;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.plano-novo-input:focus {
+  outline: none;
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 2px var(--brand-blue-glow);
+}
+.plano-novo-input::placeholder {
+  color: #64748b;
+  font-size: 13.5px;
+}
+.plano-novo-dica {
+  font-size: 12px;
+  color: #71717a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 2px;
+}
+.btn-adicionar-acao {
+  background: #222228;
+  border: 1px solid var(--brand-border);
+  color: #e4e4e7;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.btn-adicionar-acao:hover {
+  background: var(--brand-blue);
+  color: #fff;
+  border-color: var(--brand-blue);
+}
+
+.plano-vazio-aviso {
+  font-size: 13.5px;
+  color: var(--brand-muted);
+  background: #111114;
+  border: 1px dashed var(--brand-border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  text-align: center;
+}
+
+/* Modais */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(8px);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.ativo { display: flex; }
+.modal-content {
+  background: #18181b;
+  border: 1px solid var(--brand-border);
+  border-radius: 16px;
+  max-width: 560px;
+  width: 100%;
+  padding: 28px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.modal-header h3 { font-size: 18px; font-weight: 700; color: #fff; }
+.btn-fechar-modal {
+  background: none; border: none; color: #a1a1aa; font-size: 20px; cursor: pointer;
+}
+.formula-box {
+  background: #09090b; border: 1px solid var(--brand-border); border-radius: 10px;
+  padding: 14px 16px; margin: 12px 0; font-family: monospace; font-size: 14px; color: #38bdf8;
+  line-height: 1.5;
+}
+.modal-text { font-size: 14px; color: #d4d4d8; line-height: 1.6; }
+.modal-text strong { color: #fff; }
+
+/* REGRAS ADAPTATIVAS POR DISPOSITIVO IDENTIFICADO (PC, TABLET, MOBILE) */
+html[data-device="mobile"] body {
+  font-size: 15px;
+}
+html[data-device="mobile"] .top-bar {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+html[data-device="mobile"] .client-profile-pill {
+  width: 100%;
+  justify-content: space-between;
+}
+html[data-device="mobile"] .gap-main-numbers {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+html[data-device="mobile"] .gap-dinamico-valor {
+  font-size: 30px;
+}
+html[data-device="mobile"] .section-space {
+  padding: 18px 16px;
+}
+html[data-device="mobile"] .grid-portfolio-inputs {
+  grid-template-columns: 1fr;
+}
+html[data-device="mobile"] .resumo-financeiro-atual {
+  grid-template-columns: 1fr;
+}
+
+html[data-device="tablet"] .section-space {
+  padding: 22px 24px;
+}
+html[data-device="tablet"] .gap-dinamico-valor {
+  font-size: 34px;
+}
+
+html[data-device="pc"] .container {
+  max-width: 1380px;
+}
+html[data-device="pc"] .gap-dinamico-valor {
+  font-size: 38px;
+}
+</style>
+</head>
+<body>
+
+  <!-- ============================================================
+       HERO FIXO (STICKY) — ESPAÇO 1: PERFIL DO CLIENTE & GAP COM DESTAQUE
+       ============================================================ -->
+  <header class="hero-sticky-wrapper">
+    <div class="container">
+      
+      <!-- Linha do Topo com Perfil e Status -->
+      <div class="top-bar">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span class="brand-badge">ROTA</span>
+          <span class="screen-device-badge" id="screenDeviceBadge" title="Identificação automática de tamanho de tela">🖥️ PC</span>
+          
+          <!-- Botão / Pill de Perfil do Cliente Recolhível -->
+          <button class="client-profile-pill" id="btnToggleProfileDrawer" title="Clique para editar nome, email, meta e prazo">
+            <span class="pill-avatar">👤</span>
+            <span class="pill-name" id="pillClienteNome">Definir Cliente</span>
+            <span class="pill-meta-target" id="pillMetaDisplay">Definir Meta</span>
+            <span class="pill-toggle-icon" id="pillArrowIcon">▼</span>
+          </button>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <button class="sync-status" id="btnStatusSync" title="Clique para sincronizar com o Google BigQuery">
+            <span class="sync-dot" id="syncDot"></span>
+            <span id="syncText">💾 Salvo localmente</span>
+          </button>
+          <button class="btn-backup-topo" id="btnExportarBackup" title="Baixar cópia de segurança (arquivo JSON) no seu computador">
+            📥 Baixar Cópia
+          </button>
+          <button class="btn-backup-topo" id="btnImportarBackup" title="Abrir uma cópia salva anteriormente no computador">
+            📂 Abrir Cópia
+          </button>
+        </div>
+      </div>
+
+      <!-- Drawer Recolhível: Perfil do Cliente & Metas -->
+      <div class="profile-drawer" id="profileDrawer">
+        <div class="profile-drawer-header">
+          <span class="profile-drawer-title">👤 Perfil do Cliente & Definição de Metas</span>
+          <button class="btn-fechar-drawer" id="btnFecharProfileDrawer">Recolher ▲</button>
+        </div>
+
+        <div class="profile-drawer-grid">
+          <!-- Linha 1: Nome e E-mail -->
+          <label>
+            Nome do Empreendedor / Cliente
+            <input type="text" id="clienteNome" placeholder="Nome do cliente" value="" onfocus="this.select()" />
+          </label>
+          <label>
+            E-mail de Contato
+            <input type="text" id="clienteEmail" placeholder="email@cliente.com" value="" onfocus="this.select()" />
+          </label>
+
+          <!-- Linha 2 (EMBAIXO de Nome e E-mail): Meta e Prazo -->
+          <label>
+            Meta de Renda Líquida / mês (R$)
+            <input type="number" id="baseAlvoMensal" placeholder="0,00" value="" onfocus="this.select()" />
+          </label>
+          <label>
+            Prazo Estimado (meses)
+            <input type="number" id="basePrazoMeses" placeholder="0" value="" onfocus="this.select()" />
+          </label>
+        </div>
+      </div>
+
+      <!-- CARD DO GAP COM O DESTAQUE ORIGINAL -->
+      <div class="gap-card" id="gapCard">
+        <div class="gap-header-row">
+          <div class="gap-label-box">
+            <span class="gap-tag" id="gapTagLabel">GAP A FECHAR</span>
+            <button class="btn-info" id="btnInfoGap" title="Ver como o GAP é calculado">i</button>
+          </div>
+          <div class="gap-pct-badge" id="gapPctBadge">0% COBERTO</div>
+        </div>
+
+        <div class="gap-main-numbers">
+          <div>
+            <div class="gap-dinamico-valor" id="gapValorPrincipal">—</div>
+            <div class="gap-detalhe-status" id="gapSubdetalhe">Calculando projeção...</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 11px; color: var(--brand-muted); text-transform: uppercase;">Acima da meta</div>
+            <div style="font-size: 18px; font-weight: 700; color: #fff;" id="gapTotalSimuladoTxt">+ R$ 0,00/mês</div>
+          </div>
+        </div>
+
+        <div class="barra-container">
+          <div class="barra-preenchimento" id="barraProgresso"></div>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ============================================================
+         ESPAÇO 2: PORTFÓLIO ATUAL (SITUAÇÃO ATUAL)
+         ============================================================ -->
+    <section class="section-space" id="secaoPortfolio">
+      <div class="space-header">
+        <div class="space-title-badge">
+          <div>
+            <div class="space-title">Portfólio Atual</div>
+            <div class="space-desc">Ofertas existentes, preços praticados, volume mensal e despesa geral atual.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chips de seleção de oferta -->
+      <div style="font-size:11px; text-transform:uppercase; color:var(--brand-muted); margin-bottom:8px; font-weight:600;">
+        Ofertas cadastradas no portfólio:
+      </div>
+      <div class="chips-ofertas" id="chipsOfertas"></div>
+
+      <!-- Painel de edição da oferta selecionada -->
+      <div class="portfolio-card-oferta" id="painelOfertaEdit"></div>
+
+      <!-- Resumo Financeiro Atual com Despesa Geral Única -->
+      <div class="resumo-financeiro-atual">
+        <div class="resumo-stat">
+          <span class="resumo-stat-label">Faturamento Atual Total</span>
+          <span class="resumo-stat-valor" id="resumoFatAtual">R$ 0,00/mês</span>
+          <span style="font-size:10px; color:var(--brand-muted);">Soma de (Qtd × Preço) das ofertas</span>
+        </div>
+        <div class="resumo-stat">
+          <label class="resumo-stat-label" for="despesasAtuaisGeral">Despesas Gerais Atuais</label>
+          <input type="number" id="despesasAtuaisGeral" placeholder="0,00" value="" onfocus="this.select()" style="font-size:16px; font-weight:700; padding:4px 8px; width:100%; margin-top:2px;" />
+          <span style="font-size:10px; color:var(--brand-muted);">Custos fixos + variáveis mensais</span>
+        </div>
+        <div class="resumo-stat">
+          <span class="resumo-stat-label">Renda Líquida Atual</span>
+          <span class="resumo-stat-valor" id="resumoRendaAtual" style="color:#60a5fa;">R$ 0,00/mês</span>
+          <span style="font-size:10px; color:var(--brand-muted);">Faturamento − Despesas Gerais</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         ESPAÇO 3: SIMULAÇÃO DE CENÁRIOS (EMBAIXO DE PORTFÓLIO)
+         ============================================================ -->
+    <section class="section-space" id="secaoSimulacao">
+      <div class="space-header">
+        <div class="space-title-badge">
+          <div>
+            <div class="space-title">Simulação de Cenários</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alavanca 1: Redução de Despesas Gerais -->
+      <div class="alavanca-card" id="cardSimDespesa">
+        <div class="alavanca-header">
+          <div class="alavanca-titulo-box">
+            <span class="alavanca-badge">Alavanca 1</span>
+            <span class="alavanca-titulo">Menos Despesas</span>
+            <span class="alavanca-contrib" id="txtContribDespesa"></span>
+          </div>
+          <button class="btn-apagar-discreto" id="btnLimparDespesa" title="Zerar simulação de despesa">✕ Limpar</button>
+        </div>
+        <div class="alavanca-grid">
+          <label>
+            Valor a economizar / mês (R$)
+            <input type="number" id="simReducaoDespesa" placeholder="ex: 300" onfocus="this.select()" />
+          </label>
+          <div style="font-size:11px; color:var(--brand-muted);">
+            Cada R$ 1 economizado em despesas gerais vai direto para a renda líquida do MEI.
+          </div>
+        </div>
+        <div class="de-para-box" id="deParaDespesa">
+          <div class="de-para-item">
+            <span class="de-para-label">Hoje (De)</span>
+            <span class="de-para-valor" id="deParaDespDe">R$ 0,00</span>
+          </div>
+          <div class="de-para-arrow">➔</div>
+          <div class="de-para-item">
+            <span class="de-para-label">Novo (Para)</span>
+            <span class="de-para-valor destaque" id="deParaDespPara">R$ 0,00</span>
+          </div>
+          <div class="de-para-item">
+            <span class="de-para-label">Mudança</span>
+            <span class="de-para-badge" id="deParaDespPct">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alavanca 2: Mais Vendas na Oferta Selecionada -->
+      <div class="alavanca-card" id="cardSimVendas">
+        <div class="alavanca-header">
+          <div class="alavanca-titulo-box">
+            <span class="alavanca-badge">Alavanca 2</span>
+            <span class="alavanca-titulo">Mais Vendas</span>
+            <span class="alavanca-contrib" id="txtContribVendas"></span>
+          </div>
+          <button class="btn-apagar-discreto" id="btnLimparVendas" title="Zerar simulação de vendas desta oferta">✕ Limpar</button>
+        </div>
+        <div class="alavanca-grid">
+          <label>
+            Novas unidades vendidas / mês
+            <input type="number" id="simVendasNovas" placeholder="Atual: 0 un" onfocus="this.select()" />
+          </label>
+          <div style="font-size:11px; color:var(--brand-muted);">
+            Multiplicado pelo preço praticado nesta oferta para gerar faturamento extra.
+          </div>
+        </div>
+        <div class="de-para-box" id="deParaVendas">
+          <div class="de-para-item">
+            <span class="de-para-label">Hoje (De)</span>
+            <span class="de-para-valor" id="deParaVendasDe">0 un/mês</span>
+          </div>
+          <div class="de-para-arrow">➔</div>
+          <div class="de-para-item">
+            <span class="de-para-label">Novo (Para)</span>
+            <span class="de-para-valor destaque" id="deParaVendasPara">0 un/mês</span>
+          </div>
+          <div class="de-para-item">
+            <span class="de-para-label">Mudança</span>
+            <span class="de-para-badge" id="deParaVendasPct">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alavanca 3: Reajuste de Preço na Oferta Selecionada -->
+      <div class="alavanca-card" id="cardSimPreco">
+        <div class="alavanca-header">
+          <div class="alavanca-titulo-box">
+            <span class="alavanca-badge">Alavanca 3</span>
+            <span class="alavanca-titulo">Aumentar Preço</span>
+            <span class="alavanca-contrib" id="txtContribPreco"></span>
+          </div>
+          <button class="btn-apagar-discreto" id="btnLimparPreco" title="Zerar simulação de preço desta oferta">✕ Limpar</button>
+        </div>
+        <div class="alavanca-grid">
+          <label>
+            Novo Preço Unitário (R$)
+            <div class="input-com-badge">
+              <input type="number" id="simPrecoNovo" placeholder="Atual: R$ 0,00" onfocus="this.select()" style="width:160px;" />
+              <span class="badge-aumento" id="badgeAumentoPreco">—</span>
+            </div>
+          </label>
+          <div style="font-size:11px; color:var(--brand-muted);">
+            Aplicado sobre a quantidade base de clientes/vendas atuais desta oferta.
+          </div>
+        </div>
+        <div class="de-para-box" id="deParaPreco">
+          <div class="de-para-item">
+            <span class="de-para-label">Hoje (De)</span>
+            <span class="de-para-valor" id="deParaPrecoDe">R$ 0,00</span>
+          </div>
+          <div class="de-para-arrow">➔</div>
+          <div class="de-para-item">
+            <span class="de-para-label">Novo (Para)</span>
+            <span class="de-para-valor destaque" id="deParaPrecoPara">R$ 0,00</span>
+          </div>
+          <div class="de-para-item">
+            <span class="de-para-label">Mudança</span>
+            <span class="de-para-badge" id="deParaPrecoPct">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alavanca 4: Novo Produto -->
+      <div class="alavanca-card" id="cardSimProduto">
+        <div class="alavanca-header">
+          <div class="alavanca-titulo-box">
+            <span class="alavanca-badge" style="background:#0e7490; color:#a5f3fc;">Alavanca 4</span>
+            <span class="alavanca-titulo">Novo Produto</span>
+            <span class="alavanca-contrib" id="txtContribProduto"></span>
+          </div>
+          <button class="btn-apagar-discreto" id="btnLimparProduto" title="Zerar simulação de novo produto">✕ Limpar</button>
+        </div>
+        <div class="alavanca-grid">
+          <label>
+            Vendas estimadas / mês
+            <input type="number" id="produtoVendasMes" placeholder="ex: 5" onfocus="this.select()" />
+          </label>
+          <label>
+            Valor unitário (R$)
+            <input type="number" id="produtoValorUnitario" placeholder="ex: 250" onfocus="this.select()" />
+          </label>
+          <label>
+            Despesa estimada / mês (R$)
+            <input type="number" id="produtoDespesa" placeholder="ex: 150" onfocus="this.select()" />
+          </label>
+        </div>
+        <div class="novo-produto-box" id="produtoResultadoBox">
+          <span>Margem líquida estimada do novo produto:</span>
+          <strong id="produtoResultadoValor">R$ 0,00/mês</strong>
+        </div>
+      </div>
+
+      <!-- Resumo Final da Simulação -->
+      <div class="resumo-final-card" id="resumoFinalCard">
+        Calculando resumo dos cenários...
+      </div>
+
+      <!-- ============================================================
+           PLANO DE AÇÃO
+           ============================================================ -->
+      <div class="plano-acao-card" id="blocoPlanoAcao">
+        <div class="plano-acao-header">
+          <div class="plano-acao-title-row">
+            <span class="plano-acao-badge">Execução</span>
+            <h3 class="plano-acao-titulo">Plano de Ação</h3>
+          </div>
+          <p class="plano-acao-desc">
+            Selecione uma ou mais frentes de atuação para listar as ações práticas que serão tomadas:
+          </p>
+        </div>
+
+        <!-- Seletor dos 4 itens/pilares -->
+        <div class="plano-pilares-chips" id="planoPilaresChips"></div>
+
+        <!-- Painéis de Ações dos Pilares Ativos -->
+        <div class="plano-acoes-container" id="planoAcoesContainer"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================================
+       MODAL DE EXPLICAÇÃO DO GAP (BOTÃO I)
+       ============================================================ -->
+  <div class="modal-overlay" id="modalInfoGap">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Como o GAP é calculado?</h3>
+        <button class="btn-fechar-modal" id="btnFecharModalGap">✕</button>
+      </div>
+      <div class="modal-text">
+        <p>O <strong>GAP</strong> representa a distância financeira mensal entre onde o MEI está hoje e a meta almejada:</p>
+
+        <div class="formula-box">
+          1. Renda Líquida Atual = Faturamento Atual − Despesas Gerais Atuais<br>
+          2. GAP Inicial = Meta de Renda Líquida − Renda Líquida Atual
+        </div>
+
+        <p style="margin-top: 10px;">Quando a Cris simula as 4 alavancas no Espaço 3:</p>
+        <div class="formula-box">
+          3. Total Simulado = Economia de Despesas + Mais Vendas + Reajuste de Preço + Lucro de Novo Produto<br>
+          4. % de Cobertura = (Total Simulado ÷ GAP Inicial) × 100<br>
+          5. Saldo Restante = GAP Inicial − Total Simulado
+        </div>
+
+        <p style="margin-top: 10px;">
+          Se o <strong>Total Simulado</strong> ultrapassar o GAP, a porcentagem passa de 100% e o visor passa a exibir o <strong>superávit</strong> (quanto está acima da meta), mudando de cor do vermelho para o verde vibrante.
+        </p>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ============================================================
+// ESTADO E MODELO DA APLICAÇÃO
+// ============================================================
+let proximoIdOferta = 1;
+let ofertaSelecionadaId = null;
+
+let estado = {
+  cliente: {
+    nome: "",
+    email: ""
+  },
+  base: {
+    alvoMensal: 0,
+    prazoMeses: 0,
+    despesasAtuais: 0
+  },
+  simulacaoGeral: {
+    reducaoDespesa: 0
+  },
+  novoProduto: {
+    vendasMes: 0,
+    valorUnitario: 0,
+    despesa: 0
+  },
+  ofertas: [],
+  planoAcao: {
+    pilaresSelecionados: [],
+    acoes: {
+      "Menos despesas": [],
+      "Mais vendas": [],
+      "Aumentar preço": [],
+      "Novo produto": []
+    }
+  }
+};
+
+function criarNovaOferta(nome = "", preco = 0, quantidade = 0) {
+  return {
+    id: proximoIdOferta++,
+    nome: nome,
+    preco: preco,
+    quantidade: quantidade,
+    simVendasNovas: 0,
+    simPrecoNovo: 0
+  };
+}
+
+// ============================================================
+// FORMATAÇÃO E HELPERS
+// ============================================================
+function formatBRL(v) {
+  return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function numVal(id) {
+  const el = document.getElementById(id);
+  if (!el || el.value === "") return 0;
+  const val = parseFloat(el.value);
+  return isNaN(val) ? 0 : val;
+}
+
+function obterOfertaSelecionada() {
+  return estado.ofertas.find(o => o.id === ofertaSelecionadaId) || estado.ofertas[0] || null;
+}
+
+// Interpolação de cores (Vermelho -> Âmbar -> Verde)
+function obterCorProgresso(pct) {
+  const p = Math.max(0, Math.min(100, pct));
+  let r, g, b;
+
+  if (p < 50) {
+    const t = p / 50;
+    r = Math.round(239 + (245 - 239) * t);
+    g = Math.round(68 + (158 - 68) * t);
+    b = Math.round(68 + (11 - 68) * t);
+  } else {
+    const t = (p - 50) / 50;
+    r = Math.round(245 + (34 - 245) * t);
+    g = Math.round(158 + (197 - 158) * t);
+    b = Math.round(11 + (94 - 11) * t);
+  }
+
+  const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  return {
+    color: hex,
+    glow: `rgba(${r}, ${g}, ${b}, 0.22)`,
+    bg: `rgba(${r}, ${g}, ${b}, 0.12)`
+  };
+}
+
+// ============================================================
+// CÁLCULO GERAL MATEMÁTICO
+// ============================================================
+function calcularTudo() {
+  const faturamentoAtualTotal = estado.ofertas.reduce((soma, o) => soma + (o.preco * o.quantidade), 0);
+  const despesasAtuais = estado.base.despesasAtuais;
+  const rendaAtual = faturamentoAtualTotal - despesasAtuais;
+  const alvoMensal = estado.base.alvoMensal;
+  const gapInicial = alvoMensal - rendaAtual;
+
+  // Alavanca 1: Redução de Despesas
+  const contribDespesa = estado.simulacaoGeral.reducaoDespesa;
+
+  // Alavancas 2 & 3: Mais Vendas e Preço
+  let contribVendasTotal = 0;
+  let contribPrecoTotal = 0;
+
+  estado.ofertas.forEach(o => {
+    const vendasExtras = Math.max(0, o.simVendasNovas);
+    contribVendasTotal += (vendasExtras * o.preco);
+
+    if (o.simPrecoNovo > o.preco) {
+      contribPrecoTotal += (o.quantidade * (o.simPrecoNovo - o.preco));
+    }
+  });
+
+  // Alavanca 4: Novo Produto
+  const np = estado.novoProduto;
+  const receitaNovoProduto = (np.vendasMes * np.valorUnitario) - np.despesa;
+  const contribProduto = Math.max(0, receitaNovoProduto);
+
+  const totalSimulado = contribDespesa + contribVendasTotal + contribPrecoTotal + contribProduto;
+
+  let pctFechado = 0;
+  let saldoRestante = 0;
+
+  if (gapInicial <= 0) {
+    pctFechado = 100;
+    saldoRestante = 0;
+  } else {
+    pctFechado = (totalSimulado / gapInicial) * 100;
+    saldoRestante = gapInicial - totalSimulado;
+  }
+
+  return {
+    faturamentoAtualTotal,
+    despesasAtuais,
+    rendaAtual,
+    alvoMensal,
+    gapInicial,
+    contribDespesa,
+    contribVendasTotal,
+    contribPrecoTotal,
+    contribProduto,
+    totalSimulado,
+    pctFechado,
+    saldoRestante
+  };
+}
+
+// ============================================================
+// ATUALIZAÇÃO REATIVA DE INTERFACE (RECÁLCULO)
+// ============================================================
+function recalcular() {
+  estado.cliente.nome = document.getElementById("clienteNome").value;
+  estado.cliente.email = document.getElementById("clienteEmail").value;
+  estado.base.alvoMensal = numVal("baseAlvoMensal");
+  estado.base.prazoMeses = numVal("basePrazoMeses");
+  estado.base.despesasAtuais = numVal("despesasAtuaisGeral");
+
+  estado.simulacaoGeral.reducaoDespesa = numVal("simReducaoDespesa");
+  estado.novoProduto.vendasMes = numVal("produtoVendasMes");
+  estado.novoProduto.valorUnitario = numVal("produtoValorUnitario");
+  estado.novoProduto.despesa = numVal("produtoDespesa");
+
+  const oferta = obterOfertaSelecionada();
+  if (oferta) {
+    oferta.simVendasNovas = numVal("simVendasNovas");
+    oferta.simPrecoNovo = numVal("simPrecoNovo");
+  }
+
+  // Atualizar Pill do Perfil no topo
+  document.getElementById("pillClienteNome").textContent = estado.cliente.nome || "Novo Cliente";
+  const metaTxt = estado.base.alvoMensal > 0 ? `${formatBRL(estado.base.alvoMensal)}/mês` : "Definir Meta";
+  const prazoTxt = estado.base.prazoMeses > 0 ? ` (${estado.base.prazoMeses}m)` : "";
+  document.getElementById("pillMetaDisplay").innerHTML = `Meta: ${metaTxt}${prazoTxt}`;
+
+  const r = calcularTudo();
+
+  // Cores dinâmicas do GAP
+  const corInfo = obterCorProgresso(r.pctFechado);
+  const root = document.documentElement;
+  root.style.setProperty('--status-color', corInfo.color);
+  root.style.setProperty('--status-glow', corInfo.glow);
+  root.style.setProperty('--status-bg', corInfo.bg);
+
+  // Textos do GAP com destaque original
+  const elValorPrincipal = document.getElementById("gapValorPrincipal");
+  const elSubdetalhe = document.getElementById("gapSubdetalhe");
+  const elTagLabel = document.getElementById("gapTagLabel");
+  const elPctBadge = document.getElementById("gapPctBadge");
+
+  elPctBadge.textContent = `${Math.round(r.pctFechado)}% COBERTO`;
+
+  if (r.alvoMensal === 0) {
+    elTagLabel.textContent = "DEFINIR META";
+    elValorPrincipal.textContent = "R$ 0,00/mês";
+    elSubdetalhe.innerHTML = `Clique em <strong>Novo Cliente</strong> acima para definir meta e prazo.`;
+  } else if (r.gapInicial <= 0) {
+    elTagLabel.textContent = "META JÁ ATINGIDA";
+    elValorPrincipal.textContent = "Meta Batida!";
+    elSubdetalhe.innerHTML = `Renda atual (${formatBRL(r.rendaAtual)}) já cobre o alvo de ${formatBRL(r.alvoMensal)}.`;
+  } else if (r.totalSimulado >= r.gapInicial) {
+    const excedente = r.totalSimulado - r.gapInicial;
+    elTagLabel.textContent = "META SUPERADA!";
+    elValorPrincipal.textContent = `+ ${formatBRL(excedente)}/mês`;
+    elSubdetalhe.innerHTML = `<strong>GAP de ${formatBRL(r.gapInicial)} 100% batido!</strong>`;
+  } else {
+    elTagLabel.textContent = "GAP A FECHAR";
+    elValorPrincipal.textContent = `${formatBRL(r.saldoRestante)}/mês`;
+    elSubdetalhe.innerHTML = `GAP original: ${formatBRL(r.gapInicial)}/mês · Faltam <strong>${formatBRL(r.saldoRestante)}</strong>`;
+  }
+
+  document.getElementById("gapTotalSimuladoTxt").textContent = `+ ${formatBRL(r.totalSimulado)}/mês`;
+
+  const larguraBarra = Math.min(100, Math.max(0, r.pctFechado));
+  document.getElementById("barraProgresso").style.width = `${larguraBarra}%`;
+
+  // Espaço 2: Portfólio Atual
+  document.getElementById("resumoFatAtual").textContent = `${formatBRL(r.faturamentoAtualTotal)}/mês`;
+  document.getElementById("resumoRendaAtual").textContent = `${formatBRL(r.rendaAtual)}/mês`;
+
+  // Espaço 3: Alavancas de Simulação
+  const elContribDesp = document.getElementById("txtContribDespesa");
+  elContribDesp.textContent = r.contribDespesa > 0 ? `fecha +${formatBRL(r.contribDespesa)}` : "";
+
+  // De / Para Alavanca 1: Despesas
+  const despAtual = estado.base.despesasAtuais || 0;
+  const inputElDesp = document.getElementById("simReducaoDespesa");
+  const valReducaoDespStr = inputElDesp ? inputElDesp.value.trim() : "";
+  const despReducao = valReducaoDespStr !== "" ? (parseFloat(valReducaoDespStr) || 0) : 0;
+  const despNova = Math.max(0, despAtual - despReducao);
+  let pctReducaoDesp = 0;
+  if (valReducaoDespStr !== "") {
+    if (despAtual > 0) {
+      pctReducaoDesp = (despReducao / despAtual) * 100;
+    } else if (despReducao > 0) {
+      pctReducaoDesp = 100;
+    }
+  }
+
+  document.getElementById("deParaDespDe").textContent = formatBRL(despAtual);
+  document.getElementById("deParaDespPara").textContent = formatBRL(despNova);
+  const elBadgeDesp = document.getElementById("deParaDespPct");
+  if (valReducaoDespStr !== "" && despReducao > 0) {
+    elBadgeDesp.className = "de-para-badge reducao";
+    elBadgeDesp.textContent = `-${pctReducaoDesp.toFixed(1)}%`;
+  } else {
+    elBadgeDesp.className = "de-para-badge";
+    elBadgeDesp.textContent = "0%";
+  }
+
+  if (oferta) {
+    const ganhoVendasOferta = oferta.simVendasNovas * oferta.preco;
+    document.getElementById("txtContribVendas").textContent = ganhoVendasOferta > 0 ? `fecha +${formatBRL(ganhoVendasOferta)}` : "";
+
+    // De / Para Alavanca 2: Mais Vendas
+    const vendasAtuais = oferta.quantidade || 0;
+    const inputElVendas = document.getElementById("simVendasNovas");
+    const valVendasStr = inputElVendas ? inputElVendas.value.trim() : "";
+    const vendasExtras = valVendasStr !== "" ? (parseInt(valVendasStr, 10) || 0) : 0;
+    const vendasTotais = Math.max(0, vendasAtuais + vendasExtras);
+    let pctAumentoVendas = 0;
+    if (valVendasStr !== "") {
+      if (vendasAtuais > 0) {
+        pctAumentoVendas = (vendasExtras / vendasAtuais) * 100;
+      } else if (vendasExtras > 0) {
+        pctAumentoVendas = 100;
+      }
+    }
+
+    document.getElementById("deParaVendasDe").textContent = `${vendasAtuais} un/mês`;
+    document.getElementById("deParaVendasPara").textContent = `${vendasTotais} un/mês`;
+    const elBadgeVendas = document.getElementById("deParaVendasPct");
+    if (valVendasStr !== "" && vendasExtras > 0) {
+      elBadgeVendas.className = "de-para-badge positivo";
+      elBadgeVendas.textContent = `+${pctAumentoVendas.toFixed(1)}%`;
+    } else if (valVendasStr !== "" && vendasExtras < 0) {
+      elBadgeVendas.className = "de-para-badge reducao";
+      elBadgeVendas.textContent = `${pctAumentoVendas.toFixed(1)}%`;
+    } else {
+      elBadgeVendas.className = "de-para-badge";
+      elBadgeVendas.textContent = "0%";
+    }
+
+    // De / Para Alavanca 3: Aumentar Preço
+    let ganhoPrecoOferta = 0;
+    const precoAtual = oferta.preco || 0;
+    const inputElPreco = document.getElementById("simPrecoNovo");
+    const valPrecoNovoStr = inputElPreco ? inputElPreco.value.trim() : "";
+    const precoNovo = valPrecoNovoStr !== "" ? (parseFloat(valPrecoNovoStr) || 0) : precoAtual;
+
+    let pctPreco = 0;
+    if (valPrecoNovoStr !== "") {
+      if (precoAtual > 0) {
+        pctPreco = ((precoNovo - precoAtual) / precoAtual) * 100;
+      } else if (precoNovo > 0) {
+        pctPreco = 100;
+      }
+    }
+
+    if (precoNovo > precoAtual) {
+      ganhoPrecoOferta = oferta.quantidade * (precoNovo - precoAtual);
+    }
+    document.getElementById("txtContribPreco").textContent = ganhoPrecoOferta > 0 ? `fecha +${formatBRL(ganhoPrecoOferta)}` : "";
+
+    document.getElementById("deParaPrecoDe").textContent = formatBRL(precoAtual);
+    document.getElementById("deParaPrecoPara").textContent = formatBRL(precoNovo);
+    const elBadgePreco = document.getElementById("deParaPrecoPct");
+    const badgeAumento = document.getElementById("badgeAumentoPreco");
+
+    if (valPrecoNovoStr !== "" && pctPreco > 0) {
+      badgeAumento.className = "badge-aumento positivo";
+      badgeAumento.textContent = `+${pctPreco.toFixed(1)}%`;
+      elBadgePreco.className = "de-para-badge positivo";
+      elBadgePreco.textContent = `+${pctPreco.toFixed(1)}%`;
+    } else if (valPrecoNovoStr !== "" && pctPreco < 0) {
+      badgeAumento.className = "badge-aumento";
+      badgeAumento.textContent = `${pctPreco.toFixed(1)}%`;
+      elBadgePreco.className = "de-para-badge reducao";
+      elBadgePreco.textContent = `${pctPreco.toFixed(1)}%`;
+    } else {
+      badgeAumento.className = "badge-aumento";
+      badgeAumento.textContent = "—";
+      elBadgePreco.className = "de-para-badge";
+      elBadgePreco.textContent = "0%";
+    }
+  } else {
+    document.getElementById("txtContribVendas").textContent = "";
+    document.getElementById("deParaVendasDe").textContent = "0 un/mês";
+    document.getElementById("deParaVendasPara").textContent = "0 un/mês";
+    const bV = document.getElementById("deParaVendasPct");
+    if (bV) { bV.className = "de-para-badge"; bV.textContent = "0%"; }
+
+    document.getElementById("txtContribPreco").textContent = "";
+    document.getElementById("deParaPrecoDe").textContent = formatBRL(0);
+    document.getElementById("deParaPrecoPara").textContent = formatBRL(0);
+    const bP = document.getElementById("deParaPrecoPct");
+    if (bP) { bP.className = "de-para-badge"; bP.textContent = "0%"; }
+    const bA = document.getElementById("badgeAumentoPreco");
+    if (bA) { bA.className = "badge-aumento"; bA.textContent = "—"; }
+  }
+
+  const npLucro = (estado.novoProduto.vendasMes * estado.novoProduto.valorUnitario) - estado.novoProduto.despesa;
+  document.getElementById("produtoResultadoValor").textContent = `${formatBRL(npLucro)}/mês`;
+  document.getElementById("txtContribProduto").textContent = npLucro > 0 ? `fecha +${formatBRL(npLucro)}` : "";
+
+  // Resumo Final Card
+  const elResumoCard = document.getElementById("resumoFinalCard");
+  if (r.gapInicial <= 0) {
+    elResumoCard.className = "resumo-final-card completo";
+    elResumoCard.textContent = "O faturamento atual já atinge ou supera a meta definida. Nenhuma alavanca é necessária no momento.";
+  } else if (r.pctFechado >= 100) {
+    elResumoCard.className = "resumo-final-card completo";
+    const excedente = r.totalSimulado - r.gapInicial;
+    elResumoCard.innerHTML = `🎉 <strong>Meta 100% atingida!</strong> As simulações geram <strong>+${formatBRL(r.totalSimulado)}/mês</strong>${excedente > 0 ? ` com <strong>${formatBRL(excedente)}</strong> de folga acima da meta` : ""}.`;
+  } else if (r.pctFechado >= 60) {
+    elResumoCard.className = "resumo-final-card quase";
+    elResumoCard.innerHTML = `👍 Bom avanço: <strong>${Math.round(r.pctFechado)}% do GAP coberto</strong>. Faltam <strong>${formatBRL(r.saldoRestante)}/mês</strong> — ajuste mais uma alavanca para fechar a conta.`;
+  } else {
+    elResumoCard.className = "resumo-final-card incompleto";
+    elResumoCard.innerHTML = `Faltam <strong>${formatBRL(r.saldoRestante)}/mês</strong> para atingir a meta (${Math.round(r.pctFechado)}% coberto). Explore aumento de volume, preço ou novo produto.`;
+  }
+
+  if (window.dataManager) {
+    window.dataManager.salvarLocal({
+      ...estado,
+      resultadoCalculado: r
+    });
+  }
+}
+
+// ============================================================
+// RENDERIZAÇÃO E INTERAÇÃO DOS CHIPS E OFERTAS
+// ============================================================
+function renderChips() {
+  const container = document.getElementById("chipsOfertas");
+  container.innerHTML = "";
+
+  estado.ofertas.forEach((o, index) => {
+    const chip = document.createElement("button");
+    chip.className = "chip-oferta" + (o.id === ofertaSelecionadaId ? " selecionado" : "");
+    chip.innerHTML = `<span>${escapeHtml(o.nome) || ("Oferta " + (index + 1))}</span>`;
+    chip.addEventListener("click", () => {
+      ofertaSelecionadaId = o.id;
+      renderChips();
+      renderPainelOferta();
+      recalcular();
+    });
+    container.appendChild(chip);
+  });
+
+  const btnAdd = document.createElement("button");
+  btnAdd.className = "chip-add";
+  btnAdd.textContent = "+ Nova Oferta";
+  btnAdd.addEventListener("click", () => {
+    const nova = criarNovaOferta("", 0, 0);
+    estado.ofertas.push(nova);
+    ofertaSelecionadaId = nova.id;
+    renderChips();
+    renderPainelOferta();
+    recalcular();
+  });
+  container.appendChild(btnAdd);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
+function renderPainelOferta() {
+  const painel = document.getElementById("painelOfertaEdit");
+  const oferta = obterOfertaSelecionada();
+
+  if (!oferta) {
+    painel.innerHTML = `<p style="font-size:12px; color:var(--brand-muted);">Nenhuma oferta cadastrada no portfólio.</p>`;
+    return;
+  }
+
+  painel.innerHTML = `
+    <div style="font-size:13px; text-transform:uppercase; color:#60a5fa; font-weight:700; margin-bottom:10px;" id="tituloEditandoOferta">
+      Editando parâmetros de: ${escapeHtml(oferta.nome || 'Oferta')}
+    </div>
+    <div class="grid-portfolio-inputs">
+      <label>
+        Nome da Oferta
+        <input type="text" id="inputOfertaNome" placeholder="Nome da oferta" value="${escapeHtml(oferta.nome || '')}" onfocus="this.select()" />
+      </label>
+      <label>
+        Preço Atual (R$)
+        <input type="number" id="inputOfertaPreco" placeholder="0,00" value="${oferta.preco > 0 ? oferta.preco : ''}" onfocus="this.select()" />
+      </label>
+      <label>
+        Qtd Vendida / Mês Atual
+        <input type="number" id="inputOfertaQtd" placeholder="0" value="${oferta.quantidade > 0 ? oferta.quantidade : ''}" onfocus="this.select()" />
+      </label>
+      ${estado.ofertas.length > 1 ? `<button class="btn-del-oferta" id="btnExcluirOferta" title="Remover esta oferta">Excluir Oferta</button>` : '<div></div>'}
+    </div>
+  `;
+
+  // Placeholders contextuais com valores atuais
+  const inputVendas = document.getElementById("simVendasNovas");
+  inputVendas.placeholder = oferta.quantidade > 0 ? `Atual: ${oferta.quantidade} un/mês` : "0";
+  inputVendas.value = oferta.simVendasNovas > 0 ? oferta.simVendasNovas : "";
+
+  const inputPreco = document.getElementById("simPrecoNovo");
+  inputPreco.placeholder = oferta.preco > 0 ? `Atual: ${formatBRL(oferta.preco)}` : "0,00";
+  inputPreco.value = oferta.simPrecoNovo > 0 ? oferta.simPrecoNovo : "";
+
+  document.getElementById("inputOfertaNome").addEventListener("input", (e) => {
+    oferta.nome = e.target.value;
+    const elTitulo = document.getElementById("tituloEditandoOferta");
+    if (elTitulo) {
+      elTitulo.textContent = `Editando parâmetros de: ${oferta.nome.trim() || 'Oferta'}`;
+    }
+    renderChips();
+    recalcular();
+  });
+
+  document.getElementById("inputOfertaPreco").addEventListener("input", (e) => {
+    oferta.preco = parseFloat(e.target.value) || 0;
+    inputPreco.placeholder = `Atual: ${formatBRL(oferta.preco)}`;
+    recalcular();
+  });
+
+  document.getElementById("inputOfertaQtd").addEventListener("input", (e) => {
+    oferta.quantidade = parseFloat(e.target.value) || 0;
+    inputVendas.placeholder = `Atual: ${oferta.quantidade} un/mês`;
+    recalcular();
+  });
+
+  const btnExcluir = document.getElementById("btnExcluirOferta");
+  if (btnExcluir) {
+    btnExcluir.addEventListener("click", () => {
+      estado.ofertas = estado.ofertas.filter(o => o.id !== oferta.id);
+      ofertaSelecionadaId = estado.ofertas.length > 0 ? estado.ofertas[0].id : null;
+      renderChips();
+      renderPainelOferta();
+      recalcular();
+    });
+  }
+}
+
+// ============================================================
+// BOTÕES DE LIMPAR DISCRETOS
+// ============================================================
+function configurarBotoesLimpar() {
+  document.getElementById("btnLimparDespesa").addEventListener("click", () => {
+    document.getElementById("simReducaoDespesa").value = "";
+    estado.simulacaoGeral.reducaoDespesa = 0;
+    recalcular();
+  });
+
+  document.getElementById("btnLimparVendas").addEventListener("click", () => {
+    document.getElementById("simVendasNovas").value = "";
+    const oferta = obterOfertaSelecionada();
+    if (oferta) oferta.simVendasNovas = 0;
+    recalcular();
+  });
+
+  document.getElementById("btnLimparPreco").addEventListener("click", () => {
+    document.getElementById("simPrecoNovo").value = "";
+    const oferta = obterOfertaSelecionada();
+    if (oferta) oferta.simPrecoNovo = 0;
+    recalcular();
+  });
+
+  document.getElementById("btnLimparProduto").addEventListener("click", () => {
+    document.getElementById("produtoVendasMes").value = "";
+    document.getElementById("produtoValorUnitario").value = "";
+    document.getElementById("produtoDespesa").value = "";
+    estado.novoProduto = { vendasMes: 0, valorUnitario: 0, despesa: 0 };
+    recalcular();
+  });
+}
+
+// ============================================================
+// MODAIS E DRAWER
+// ============================================================
+function configurarModaisEDrawer() {
+  const drawer = document.getElementById("profileDrawer");
+  const btnToggle = document.getElementById("btnToggleProfileDrawer");
+  const btnFechar = document.getElementById("btnFecharProfileDrawer");
+  const arrowIcon = document.getElementById("pillArrowIcon");
+
+  function alternarDrawer() {
+    const estaAberto = drawer.classList.toggle("aberto");
+    arrowIcon.textContent = estaAberto ? "▲" : "▼";
+  }
+
+  btnToggle.addEventListener("click", alternarDrawer);
+  btnFechar.addEventListener("click", alternarDrawer);
+
+  const modalGap = document.getElementById("modalInfoGap");
+  document.getElementById("btnInfoGap").addEventListener("click", () => {
+    modalGap.classList.add("ativo");
+  });
+  document.getElementById("btnFecharModalGap").addEventListener("click", () => {
+    modalGap.classList.remove("ativo");
+  });
+  modalGap.addEventListener("click", (e) => {
+    if (e.target === modalGap) modalGap.classList.remove("ativo");
+  });
+
+  document.getElementById("btnStatusSync").addEventListener("click", async () => {
+    if (window.dataManager && window.dataManager.isBigQueryConfigured) {
+      document.getElementById("syncText").textContent = "⏳ Enviando ao BigQuery...";
+      const res = await window.dataManager.sincronizarBigQuery({
+        nome: estado.cliente.nome,
+        email: estado.cliente.email,
+        alvoMensal: estado.base.alvoMensal,
+        prazoMeses: estado.base.prazoMeses,
+        despesasAtuais: estado.base.despesasAtuais,
+        faturamentoMensal: estado.ofertas.reduce((s, o) => s + (o.preco * o.quantidade), 0),
+        gapInicial: estado.base.alvoMensal - (estado.ofertas.reduce((s, o) => s + (o.preco * o.quantidade), 0) - estado.base.despesasAtuais),
+        reducaoDespesas: estado.simulacaoGeral.reducaoDespesa,
+        ofertas: estado.ofertas,
+        novoProduto: estado.novoProduto,
+        planoAcao: estado.planoAcao,
+        totalContribuido: calcularTudo().totalSimulado,
+        pctFechado: calcularTudo().pctFechado,
+        saldoRestante: calcularTudo().saldoRestante
+      });
+      if (res.sucesso) {
+        document.getElementById("syncText").textContent = "☁️ BigQuery Sincronizado";
+        alert("Simulação sincronizada com o Google BigQuery com sucesso!");
+      } else {
+        document.getElementById("syncText").textContent = "☁️ BigQuery Conectado";
+        alert("Erro na sincronização com BigQuery: " + (res.erro || res.motivo));
+      }
+    } else {
+      alert("Armazenamento local ativo. Para sincronizar na nuvem com o Google BigQuery, configure as variáveis GOOGLE_PROJECT_ID, GOOGLE_CLIENT_EMAIL e GOOGLE_PRIVATE_KEY no Vercel ou no arquivo .env.");
+    }
+  });
+
+  document.getElementById("btnExportarBackup").addEventListener("click", () => {
+    if (window.dataManager) {
+      window.dataManager.exportarJSON({
+        ...estado,
+        resultadoCalculado: calcularTudo()
+      });
+    }
+  });
+
+  document.getElementById("btnImportarBackup").addEventListener("click", () => {
+    if (window.dataManager) {
+      window.dataManager.importarJSON((dados) => {
+        if (dados) {
+          if (dados.cliente) estado.cliente = dados.cliente;
+          if (dados.base) estado.base = dados.base;
+          if (dados.simulacaoGeral) estado.simulacaoGeral = dados.simulacaoGeral;
+          if (dados.novoProduto) estado.novoProduto = dados.novoProduto;
+          if (dados.planoAcao) estado.planoAcao = dados.planoAcao;
+          if (dados.ofertas && dados.ofertas.length > 0) {
+            estado.ofertas = dados.ofertas;
+            ofertaSelecionadaId = estado.ofertas[0].id;
+          }
+          document.getElementById("clienteNome").value = estado.cliente.nome || "";
+          document.getElementById("clienteEmail").value = estado.cliente.email || "";
+          document.getElementById("baseAlvoMensal").value = estado.base.alvoMensal > 0 ? estado.base.alvoMensal : "";
+          document.getElementById("basePrazoMeses").value = estado.base.prazoMeses > 0 ? estado.base.prazoMeses : "";
+          document.getElementById("despesasAtuaisGeral").value = estado.base.despesasAtuais > 0 ? estado.base.despesasAtuais : "";
+          document.getElementById("simReducaoDespesa").value = estado.simulacaoGeral.reducaoDespesa > 0 ? estado.simulacaoGeral.reducaoDespesa : "";
+          document.getElementById("produtoVendasMes").value = estado.novoProduto.vendasMes > 0 ? estado.novoProduto.vendasMes : "";
+          document.getElementById("produtoValorUnitario").value = estado.novoProduto.valorUnitario > 0 ? estado.novoProduto.valorUnitario : "";
+          document.getElementById("produtoDespesa").value = estado.novoProduto.despesa > 0 ? estado.novoProduto.despesa : "";
+          renderChips();
+          renderPainelOferta();
+          renderPlanoAcao();
+          recalcular();
+          alert("Backup carregado com sucesso!");
+        }
+      });
+    }
+  });
+}
+
+// ============================================================
+// PLANO DE AÇÃO (PILARES E AÇÕES DINÂMICAS)
+// ============================================================
+const PILARES_PLANO = [
+  { id: "Menos despesas", rotulo: "Menos despesas", icone: "📉" },
+  { id: "Mais vendas", rotulo: "Mais vendas", icone: "📈" },
+  { id: "Aumentar preço", rotulo: "Aumentar preço", icone: "🏷️" },
+  { id: "Novo produto", rotulo: "Novo produto", icone: "✨" }
+];
+
+function renderPlanoAcao() {
+  if (!estado.planoAcao) {
+    estado.planoAcao = { pilaresSelecionados: [], acoes: {} };
+  }
+  if (!estado.planoAcao.acoes) estado.planoAcao.acoes = {};
+  if (!estado.planoAcao.pilaresSelecionados) estado.planoAcao.pilaresSelecionados = [];
+
+  PILARES_PLANO.forEach(p => {
+    if (!estado.planoAcao.acoes[p.id]) estado.planoAcao.acoes[p.id] = [];
+  });
+
+  // Renderizar chips dos 4 pilares
+  const containerChips = document.getElementById("planoPilaresChips");
+  if (containerChips) {
+    containerChips.innerHTML = "";
+    PILARES_PLANO.forEach(p => {
+      const estaAtivo = estado.planoAcao.pilaresSelecionados.includes(p.id);
+      const qtdAcoes = (estado.planoAcao.acoes[p.id] || []).length;
+
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "pilar-chip" + (estaAtivo ? " ativo" : "");
+      chip.innerHTML = `
+        <span class="pilar-chip-check">${estaAtivo ? "✓" : "+"}</span>
+        <span>${p.icone} ${p.rotulo}</span>
+        ${qtdAcoes > 0 ? `<span class="pilar-chip-count">${qtdAcoes}</span>` : ""}
+      `;
+      chip.addEventListener("click", () => {
+        togglePilarPlano(p.id);
+      });
+      containerChips.appendChild(chip);
+    });
+  }
+
+  // Renderizar os painéis das ações dos pilares selecionados
+  const containerPaineis = document.getElementById("planoAcoesContainer");
+  if (!containerPaineis) return;
+
+  if (estado.planoAcao.pilaresSelecionados.length === 0) {
+    containerPaineis.innerHTML = `
+      <div class="plano-vazio-aviso">
+        💡 Selecione um ou mais itens acima ('Menos despesas', 'Mais vendas', 'Aumentar preço', 'Novo produto') para listar as ações práticas.
+      </div>
+    `;
+    return;
+  }
+
+  containerPaineis.innerHTML = "";
+
+  estado.planoAcao.pilaresSelecionados.forEach(pilarId => {
+    const infoPilar = PILARES_PLANO.find(p => p.id === pilarId) || { id: pilarId, rotulo: pilarId, icone: "📌" };
+    const acoes = estado.planoAcao.acoes[pilarId] || [];
+
+    const painel = document.createElement("div");
+    painel.className = "plano-pilar-painel";
+    const painelDomId = `painelPilar-${pilarId.replace(/\s+/g, '-')}`;
+    painel.id = painelDomId;
+
+    // Topo do pilar
+    const topo = document.createElement("div");
+    topo.className = "plano-pilar-topo";
+    topo.innerHTML = `
+      <div class="plano-pilar-nome">
+        <span>${infoPilar.icone}</span>
+        <strong>${infoPilar.rotulo}</strong>
+        <span class="plano-pilar-qtd">${acoes.length} ${acoes.length === 1 ? 'ação' : 'ações'}</span>
+      </div>
+      <button type="button" class="btn-fechar-pilar" title="Desmarcar ${infoPilar.rotulo}">✕ Fechar</button>
+    `;
+    topo.querySelector(".btn-fechar-pilar").addEventListener("click", () => {
+      togglePilarPlano(pilarId);
+    });
+    painel.appendChild(topo);
+
+    // Lista de ações existentes
+    const lista = document.createElement("div");
+    lista.className = "plano-acoes-lista";
+
+    if (acoes.length === 0) {
+      lista.innerHTML = `<div class="plano-sem-acoes">Nenhuma ação listada ainda. Digite abaixo e pressione <strong>Enter</strong> para adicionar.</div>`;
+    } else {
+      acoes.forEach((acaoTexto, idx) => {
+        const item = document.createElement("div");
+        item.className = "plano-acao-item";
+        item.innerHTML = `
+          <div class="plano-acao-item-texto">
+            <span class="plano-acao-item-bullet">›</span>
+            <span>${escapeHtml(acaoTexto)}</span>
+          </div>
+          <button type="button" class="btn-remover-acao" title="Remover esta ação">✕</button>
+        `;
+        item.querySelector(".btn-remover-acao").addEventListener("click", () => {
+          removerAcaoPilar(pilarId, idx);
+        });
+        lista.appendChild(item);
+      });
+    }
+    painel.appendChild(lista);
+
+    // Input de nova ação
+    const inputBox = document.createElement("div");
+    inputBox.className = "plano-novo-input-box";
+    inputBox.innerHTML = `
+      <div class="plano-novo-input-row">
+        <input type="text" class="plano-novo-input" placeholder="Digite uma ação para '${infoPilar.rotulo}' e aperte Enter..." />
+        <button type="button" class="btn-adicionar-acao">+ Adicionar</button>
+      </div>
+      <div class="plano-novo-dica">
+        <span>↵ Pressione Enter para salvar e já começar na ação seguinte</span>
+      </div>
+    `;
+
+    const inputEl = inputBox.querySelector(".plano-novo-input");
+    const btnAdd = inputBox.querySelector(".btn-adicionar-acao");
+
+    function salvarEAvançar() {
+      const texto = inputEl.value.trim();
+      if (!texto) return;
+      adicionarAcaoPilar(pilarId, texto);
+      // Foca no input imediatamente para a próxima ação
+      setTimeout(() => {
+        const pRef = document.getElementById(painelDomId);
+        if (pRef) {
+          const inp = pRef.querySelector(".plano-novo-input");
+          if (inp) inp.focus();
+        }
+      }, 30);
+    }
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        salvarEAvançar();
+      }
+    });
+
+    btnAdd.addEventListener("click", () => {
+      salvarEAvançar();
+    });
+
+    painel.appendChild(inputBox);
+    containerPaineis.appendChild(painel);
+  });
+}
+
+function togglePilarPlano(pilarId) {
+  if (!estado.planoAcao.pilaresSelecionados.includes(pilarId)) {
+    estado.planoAcao.pilaresSelecionados.push(pilarId);
+  } else {
+    estado.planoAcao.pilaresSelecionados = estado.planoAcao.pilaresSelecionados.filter(p => p !== pilarId);
+  }
+  salvarPlanoAcao();
+  renderPlanoAcao();
+
+  if (estado.planoAcao.pilaresSelecionados.includes(pilarId)) {
+    setTimeout(() => {
+      const painel = document.getElementById(`painelPilar-${pilarId.replace(/\s+/g, '-')}`);
+      if (painel) {
+        const inp = painel.querySelector(".plano-novo-input");
+        if (inp) inp.focus();
+      }
+    }, 50);
+  }
+}
+
+function adicionarAcaoPilar(pilarId, texto) {
+  if (!estado.planoAcao.acoes[pilarId]) {
+    estado.planoAcao.acoes[pilarId] = [];
+  }
+  estado.planoAcao.acoes[pilarId].push(texto);
+  salvarPlanoAcao();
+  renderPlanoAcao();
+}
+
+function removerAcaoPilar(pilarId, idx) {
+  if (estado.planoAcao.acoes[pilarId]) {
+    estado.planoAcao.acoes[pilarId].splice(idx, 1);
+    salvarPlanoAcao();
+    renderPlanoAcao();
+  }
+}
+
+function salvarPlanoAcao() {
+  if (window.dataManager) {
+    window.dataManager.salvarLocal({
+      ...estado,
+      resultadoCalculado: calcularTudo()
+    });
+  }
+}
+
+// ============================================================
+// IDENTIFICAÇÃO AUTOMÁTICA DE TAMANHO DE TELA (PC, TABLET, MOBILE)
+// ============================================================
+function atualizarIdentificacaoTela() {
+  const largura = window.innerWidth;
+  let tipo = 'pc';
+  let rotulo = `🖥️ PC (${largura}px)`;
+
+  if (largura <= 640) {
+    tipo = 'mobile';
+    rotulo = `📱 Mobile (${largura}px)`;
+  } else if (largura <= 1024) {
+    tipo = 'tablet';
+    rotulo = `📱 Tablet (${largura}px)`;
+  } else {
+    tipo = 'pc';
+    rotulo = `🖥️ PC (${largura}px)`;
+  }
+
+  document.documentElement.setAttribute('data-device', tipo);
+  const badge = document.getElementById("screenDeviceBadge");
+  if (badge) {
+    badge.textContent = rotulo;
+    badge.className = `screen-device-badge device-${tipo}`;
+  }
+}
+
+// ============================================================
+// INICIALIZAÇÃO
+// ============================================================
+async function init() {
+  atualizarIdentificacaoTela();
+  window.addEventListener("resize", atualizarIdentificacaoTela);
+
+  if (window.dataManager) {
+    const conectado = await window.dataManager.init();
+    if (conectado) {
+      document.getElementById("syncDot").style.background = "#38bdf8";
+      document.getElementById("syncText").textContent = "☁️ BigQuery Conectado";
+    }
+
+    const dadosSalvos = window.dataManager.carregarLocal();
+    if (dadosSalvos) {
+      if (dadosSalvos.cliente) estado.cliente = dadosSalvos.cliente;
+      if (dadosSalvos.base) estado.base = dadosSalvos.base;
+      if (dadosSalvos.simulacaoGeral) estado.simulacaoGeral = dadosSalvos.simulacaoGeral;
+      if (dadosSalvos.novoProduto) estado.novoProduto = dadosSalvos.novoProduto;
+      if (dadosSalvos.planoAcao) {
+        estado.planoAcao = dadosSalvos.planoAcao;
+        if (!estado.planoAcao.acoes) estado.planoAcao.acoes = {};
+        if (!estado.planoAcao.pilaresSelecionados) estado.planoAcao.pilaresSelecionados = [];
+      }
+      if (dadosSalvos.ofertas && dadosSalvos.ofertas.length > 0) {
+        estado.ofertas = dadosSalvos.ofertas;
+        ofertaSelecionadaId = estado.ofertas[0].id;
+        proximoIdOferta = Math.max(...estado.ofertas.map(o => o.id)) + 1;
+      }
+    }
+  }
+
+  if (estado.ofertas.length === 0) {
+    const primeira = criarNovaOferta("", 0, 0);
+    estado.ofertas.push(primeira);
+    ofertaSelecionadaId = primeira.id;
+  }
+
+  document.getElementById("clienteNome").value = estado.cliente.nome || "";
+  document.getElementById("clienteEmail").value = estado.cliente.email || "";
+  document.getElementById("baseAlvoMensal").value = estado.base.alvoMensal > 0 ? estado.base.alvoMensal : "";
+  document.getElementById("basePrazoMeses").value = estado.base.prazoMeses > 0 ? estado.base.prazoMeses : "";
+  document.getElementById("despesasAtuaisGeral").value = estado.base.despesasAtuais > 0 ? estado.base.despesasAtuais : "";
+
+  ["clienteNome", "clienteEmail", "baseAlvoMensal", "basePrazoMeses", "despesasAtuaisGeral", 
+   "simReducaoDespesa", "simVendasNovas", "simPrecoNovo", 
+   "produtoVendasMes", "produtoValorUnitario", "produtoDespesa"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", recalcular);
+  });
+
+  configurarBotoesLimpar();
+  configurarModaisEDrawer();
+  renderChips();
+  renderPainelOferta();
+  renderPlanoAcao();
+  recalcular();
+}
+
+window.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
