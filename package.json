@@ -2,9 +2,10 @@
   "name": "calculadora-meis",
   "version": "1.0.0",
   "description": "Calculadora e Simulador de Viabilidade e Metas para MEIs — Consultoria Comercial",
+  "main": "index.js",
   "scripts": {
-    "start": "node local-server.js",
-    "dev": "node --watch local-server.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^9.0.3",
